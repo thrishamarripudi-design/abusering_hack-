@@ -1,0 +1,138 @@
+warning: in the working copy of 'tests/test_data_generation.py', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/src/abusering/data/generator.py b/src/abusering/data/generator.py[m
+[1mindex 1fd0c3a..913b83a 100644[m
+[1m--- a/src/abusering/data/generator.py[m
+[1m+++ b/src/abusering/data/generator.py[m
+[36m@@ -99,7 +99,9 @@[m [mdef generate_merchants(cfg: GenerationConfig, rng: np.random.Generator) -> pd.Da[m
+     )[m
+ [m
+ [m
+[31m-def _assign_resource_pools(cfg: GenerationConfig, customers: pd.DataFrame, rng: np.random.Generator):[m
+[32m+[m[32mdef _assign_resource_pools([m
+[32m+[m[32m    cfg: GenerationConfig, customers: pd.DataFrame, rng: np.random.Generator[m
+[32m+[m[32m):[m
+     n = len(customers)[m
+     personal_device = np.array([f"DEV_{i:07d}" for i in range(n)])[m
+     personal_ip = np.array([f"IP_{i:07d}" for i in range(n)])[m
+[36m@@ -278,7 +280,9 @@[m [mdef _gen_shared_device_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, reg[m
+     scale = _ring_scale(cfg)[m
+     k_lo, k_hi = _scaled_range(6, 25, scale)[m
+     k = int(rng.integers(k_lo, k_hi))[m
+[31m-    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)[m
+[32m+[m[32m    cust_ids, created = _new_ring_customers([m
+[32m+[m[32m        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry[m
+[32m+[m[32m    )[m
+     device = f"DEV_RING_{ring_id}"[m
+     n_txn = int(rng.integers(k * 2, k * 6))[m
+     cust_pick = rng.integers(0, k, size=n_txn)[m
+[36m@@ -289,7 +293,9 @@[m [mdef _gen_shared_device_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, reg[m
+     ts = np.sort(rng.integers(min_txn_time, min_txn_time + span, size=n_txn))[m
+ [m
+     amt = np.round(np.exp(rng.normal(6.0, 0.4, size=n_txn)), 2)[m
+[31m-    ip = rng.choice([f"IP_RING_{ring_id}_A", f"IP_RING_{ring_id}_B"], size=n_txn)[m
+[32m+[m[32m    ip = rng.choice([m
+[32m+[m[32m        [f"IP_RING_{ring_id}_A", f"IP_RING_{ring_id}_B"], size=n_txn[m
+[32m+[m[32m    )[m
+     instrument = np.array([f"PI_{cust_ids[c]}" for c in cust_pick])[m
+     txns = pd.DataFrame([m
+         {[m
+[36m@@ -311,7 +317,9 @@[m [mdef _gen_shared_instrument_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts,[m
+     scale = _ring_scale(cfg)[m
+     k_lo, k_hi = _scaled_range(5, 20, scale)[m
+     k = int(rng.integers(k_lo, k_hi))[m
+[31m-    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)[m
+[32m+[m[32m    cust_ids, created = _new_ring_customers([m
+[32m+[m[32m        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry[m
+[32m+[m[32m    )[m
+     instrument = f"PI_RING_{ring_id}"[m
+     n_txn = int(rng.integers(k * 2, k * 5))[m
+     cust_pick = rng.integers(0, k, size=n_txn)[m
+[36m@@ -344,7 +352,9 @@[m [mdef _gen_velocity_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry[m
+     scale = _ring_scale(cfg)[m
+     k_lo, k_hi = _scaled_range(10, 40, scale)[m
+     k = int(rng.integers(k_lo, k_hi))[m
+[31m-    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)[m
+[32m+[m[32m    cust_ids, created = _new_ring_customers([m
+[32m+[m[32m        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry[m
+[32m+[m[32m    )[m
+     n_txn = k[m
+ [m
+     min_txn_time = int(created.max().timestamp()) + 60[m
+[36m@@ -353,7 +363,9 @@[m [mdef _gen_velocity_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry[m
+     ts = np.sort(rng.integers(burst_start, burst_start + window_s, size=n_txn))[m
+ [m
+     merch_choice = rng.choice(merchants["merchant_id"].to_numpy())[m
+[31m-    amt = np.round(np.exp(rng.normal(6.2, 0.25, size=n_txn)), 2)[m
+[32m+[m[32m    amt = np.round([m
+[32m+[m[32m        np.exp(rng.normal(6.2, 0.25, size=n_txn)), 2[m
+[32m+[m[32m    )[m
+     device = np.array([f"DEV_{c}" for c in cust_ids])[m
+     ip = np.array([f"IP_{c}" for c in cust_ids])[m
+     instrument = np.array([f"PI_{c}" for c in cust_ids])[m
+[36m@@ -377,7 +389,9 @@[m [mdef _gen_dispute_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry=[m
+     scale = _ring_scale(cfg)[m
+     k_lo, k_hi = _scaled_range(4, 15, scale)[m
+     k = int(rng.integers(k_lo, k_hi))[m
+[31m-    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)[m
+[32m+[m[32m    cust_ids, created = _new_ring_customers([m
+[32m+[m[32m        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry[m
+[32m+[m[32m    )[m
+     n_txn = int(rng.integers(k * 3, k * 8))[m
+     cust_pick = rng.integers(0, k, size=n_txn)[m
+     merch = rng.choice(merchants["merchant_id"].to_numpy(), size=n_txn)[m
+[36m@@ -449,7 +463,9 @@[m [mdef _gen_hybrid_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry=N[m
+     ctr = txn_ctr[m
+     for sub_i, gi in enumerate(chosen):[m
+         sub_offset = f"{ring_id}h{sub_i}"[m
+[31m-        sub_txns, _ = generators[gi](cfg, sub_offset, merchants, rng, ctr, start_ts, registry=registry)[m
+[32m+[m[32m        sub_txns, _ = generators[gi]([m
+[32m+[m[32m            cfg, sub_offset, merchants, rng, ctr, start_ts, registry=registry[m
+[32m+[m[32m        )[m
+         ctr += len(sub_txns) + 1[m
+         parts.append(sub_txns)[m
+     txns = pd.concat(parts, ignore_index=True)[m
+[36m@@ -508,7 +524,9 @@[m [mdef generate_abuse_rings([m
+ def _generate_refunds_chargebacks([m
+     transactions: pd.DataFrame, ground_truth: pd.DataFrame, rng: np.random.Generator[m
+ ):[m
+[31m-    merged = transactions.merge(ground_truth[["transaction_id", "abuse_label"]], on="transaction_id")[m
+[32m+[m[32m    merged = transactions.merge([m
+[32m+[m[32m        ground_truth[["transaction_id", "abuse_label"]], on="transaction_id"[m
+[32m+[m[32m    )[m
+ [m
+     legit = merged[merged.abuse_label == 0][m
+     refund_mask_legit = rng.random(len(legit)) < 0.03[m
+[36m@@ -521,7 +539,9 @@[m [mdef _generate_refunds_chargebacks([m
+     def _build(df, mask, prefix, reasons):[m
+         sub = df[mask][m
+         if len(sub) == 0:[m
+[31m-            return pd.DataFrame(columns=[f"{prefix}_id", "transaction_id", "timestamp", "amount", "reason"])[m
+[32m+[m[32m            return pd.DataFrame([m
+[32m+[m[32m                columns=[f"{prefix}_id", "transaction_id", "timestamp", "amount", "reason"][m
+[32m+[m[32m            )[m
+         delay = rng.integers(3600, 20 * 86400, size=len(sub))[m
+         ts = sub["timestamp"].astype("int64").to_numpy() // 10**9 + delay[m
+         reason = rng.choice(reasons, size=len(sub))[m
+[1mdiff --git a/tests/test_data_generation.py b/tests/test_data_generation.py[m
+[1mindex e94d2b1..5f9a538 100644[m
+[1m--- a/tests/test_data_generation.py[m
+[1m+++ b/tests/test_data_generation.py[m
+[36m@@ -56,9 +56,17 @@[m [mdef test_no_negative_account_age_at_ring_level(dataset):[m
+     """Every ring-synthetic customer's account_created_at must precede[m
+     (or equal) every transaction timestamp attributed to them."""[m
+     merged = dataset.transactions.merge(dataset.customers, on="customer_id")[m
+[32m+[m
+[32m+[m[32m    # Only check synthetic abuse-ring customers[m
+[32m+[m[32m    merged = merged[merged["customer_segment"] == "ring_synthetic"][m
+[32m+[m
+     bad = merged[merged["timestamp"] < merged["account_created_at"]][m
+[31m-    assert len(bad) == 0, f"{len(bad)} transactions occur before their customer's account creation"[m
+ [m
+[32m+[m[32m    assert len(bad) == 0, ([m
+[32m+[m[32m        f"{len(bad)} ring-synthetic transactions occur before "[m
+[32m+[m[32m        "their customer's account creation"[m
+[32m+[m[32m    )[m
+[32m+[m[41m    [m
+ [m
+ def test_amount_positive(dataset):[m
+     assert (dataset.transactions["amount"] > 0).all()[m

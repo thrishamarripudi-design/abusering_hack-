@@ -63,10 +63,9 @@ def test_no_negative_account_age_at_ring_level(dataset):
     bad = merged[merged["timestamp"] < merged["account_created_at"]]
 
     assert len(bad) == 0, (
-        f"{len(bad)} ring-synthetic transactions occur before "
-        "their customer's account creation"
+        f"{len(bad)} ring-synthetic transactions occur before their customer's account creation"
     )
-    
+
 
 def test_amount_positive(dataset):
     assert (dataset.transactions["amount"] > 0).all()
