@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AbuseRing Sentinel — Investigation Console</title>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --panel: #12161f;
+    --panel-2: #171c27;
+    --border: #232a38;
+    --text: #e6e9ef;
+    --muted: #8b93a7;
+    --accent: #5b8cff;
+    --danger: #ff5c72;
+    --warn: #ffb454;
+    --ok: #35d488;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    font-size: 14px;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--panel);
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: 0.2px; }
+  header h1 span { color: var(--accent); }
+  .api-config { display: flex; gap: 8px; align-items: center; }
+  .api-config input {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 10px; border-radius: 6px; font-family: var(--mono); font-size: 12px; width: 240px;
+  }
+  .api-config button, .tabs button {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+  }
+  .api-config button:hover, .tabs button:hover { border-color: var(--accent); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .status-ok { background: var(--ok); } .status-bad { background: var(--danger); }
+
+  .tabs {
+    display: flex; gap: 6px; padding: 10px 24px; border-bottom: 1px solid var(--border);
+    background: var(--panel); overflow-x: auto;
+  }
+  .tabs button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .card h3 { margin: 0 0 6px; font-size: 12px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.4px; }
+  .card .big { font-size: 26px; font-weight: 600; font-family: var(--mono); }
+  .card .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .section-title { font-size: 15px; font-weight: 600; margin: 28px 0 12px; color: var(--text); }
+  .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .table th, .table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .table th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; }
+  .table tr:hover td { background: var(--panel-2); }
+  .badge { padding: 2px 8px; border-radius: 100px; font-size: 11px; font-weight: 600; }
+  .badge-high { background: rgba(255,92,114,0.15); color: var(--danger); }
+  .badge-medium { background: rgba(255,180,84,0.15); color: var(--warn); }
+  .badge-low { background: rgba(53,212,136,0.15); color: var(--ok); }
+  .search-row { display: flex; gap: 8px; margin-bottom: 18px; }
+  .search-row input {
+    flex: 1; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 14px; border-radius: 8px; font-family: var(--mono); font-size: 13px;
+  }
+  .search-row button {
+    background: var(--accent); border: none; color: #fff; padding: 10px 20px;
+    border-radius: 8px; cursor: pointer; font-weight: 600;
+  }
+  .evidence-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed var(--border); }
+  .evidence-row .val { font-family: var(--mono); color: var(--accent); }
+  .pill-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill { background: var(--panel-2); border: 1px solid var(--border); border-radius: 100px; padding: 4px 12px; font-size: 12px; }
+  .empty-state { color: var(--muted); padding: 40px 0; text-align: center; }
+  .svg-wrap { background: var(--panel-2); border-radius: 8px; padding: 10px; }
+  select {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 10px; border-radius: 6px; font-size: 12px;
+  }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AbuseRing <span>Sentinel</span> — Investigation Console</h1>
+  <div class="api-config">
+    <span id="statusDot" class="status-dot status-bad"></span>
+    <span id="statusText" style="color: var(--muted); font-size: 12px;">checking backend…</span>
+    <label for="apiBase" style="margin-left:12px; font-size:12px; color:var(--muted)">API base URL:</label>
+    <input  id="apiBase" type="text" value="http://localhost:8000" />
+    <button onclick="setApiBase()">Connect</button>
+  </div>
+</header>
+
+<div class="tabs" id="tabs">
+  <button data-tab="overview" class="active">Overview</button>
+  <button data-tab="investigation">Investigation</button>
+  <button data-tab="modellab">Model Lab</button>
+  <button data-tab="datasetlab">Dataset Lab</button>
+  <button data-tab="audit">Audit</button>
+</div>
+
+<main>
+  <section id="tab-overview"></section>
+  <section id="tab-investigation" style="display:none"></section>
+  <section id="tab-modellab" style="display:none"></section>
+  <section id="tab-datasetlab" style="display:none"></section>
+  <section id="tab-audit" style="display:none"></section>
+</main>
+
+<script>
+let API_BASE = document.getElementById('apiBase').value;
+
+function setApiBase() {
+  API_BASE = document.getElementById('apiBase').value.replace(/\/$/, '');
+  checkHealth();
+  loadActiveTab();
+}
+
+async function api(path, opts) {
+  const res = await fetch(API_BASE + path, opts);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || (res.status + ' ' + res.statusText));
+  }
+  return res.json();
+}
+
+async function checkHealth() {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  try {
+    const h = await api('/health');
+    if (h.status === 'ok') {
+      dot.className = 'status-dot status-ok';
+      text.textContent = 'backend connected';
+    } else {
+      dot.className = 'status-dot status-bad';
+      text.textContent = h.error || 'backend not ready';
+    }
+  } catch (e) {
+    dot.className = 'status-dot status-bad';
+    text.textContent = 'cannot reach ' + API_BASE + ' — is the API running? (make api)';
+  }
+}
+
+// ---------------- tabs ----------------
+const tabs = document.getElementById('tabs');
+tabs.addEventListener('click', (e) => {
+  if (e.target.tagName !== 'BUTTON') return;
+  [...tabs.children].forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  const name = e.target.dataset.tab;
+  ['overview','investigation','modellab','datasetlab','audit'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = (t === name) ? 'block' : 'none';
+  });
+  loadTab(name);
+});
+
+function loadActiveTab() {
+  const active = document.querySelector('.tabs button.active');
+  loadTab(active ? active.dataset.tab : 'overview');
+}
+
+function loadTab(name) {
+  if (name === 'overview') renderOverview();
+  if (name === 'investigation') renderInvestigation();
+  if (name === 'modellab') renderModelLab();
+  if (name === 'datasetlab') renderDatasetLab();
+  if (name === 'audit') renderAudit();
+}
+
+function fmtNum(x, d=3) { return (typeof x === 'number') ? x.toFixed(d) : x; }
+function fmtMoney(x) { return '₹' + Math.round(x).toLocaleString('en-IN'); }
+function riskBadge(band) {
+  return `<span class="badge badge-${band}">${band.toUpperCase()}</span>`;
+}
+
+// ---------------- Overview ----------------
+async function renderOverview() {
+  const el = document.getElementById('tab-overview');
+  el.innerHTML = '<div class="empty-state">loading…</div>';
+  try {
+    const d = await api('/overview');
+    const tm = d.locked_test_metrics;
+    const rules = d.baseline_rules_validation_metrics;
+    const sel = d.selected_model_validation_metrics;
+    el.innerHTML = `
+      <div class="grid">
+        <div class="card"><h3>Transactions monitored</h3><div class="big">${d.transactions_monitored.toLocaleString()}</div></div>
+        <div class="card"><h3>Predicted abuse</h3><div class="big" style="color:var(--danger)">${d.predicted_abuse_count.toLocaleString()}</div>
+          <div class="sub">${(d.predicted_abuse_rate*100).toFixed(2)}% of monitored transactions</div></div>
+        <div class="card"><h3>Known abuse-ring clusters</h3><div class="big">${d.known_abuse_ring_clusters_evaluation_only}</div>
+          <div class="sub">ground-truth, evaluation-only</div></div>
+        <div class="card"><h3>Potential exposure (flagged)</h3><div class="big" style="color:var(--warn)">${fmtMoney(d.potential_financial_exposure_flagged_amount)}</div></div>
+      </div>
+
+      <div class="section-title">Selected model (${d.winning_model}) — locked test set</div>
+      <div class="grid">
+        <div class="card"><h3>Precision</h3><div class="big">${fmtNum(tm.precision)}</div></div>
+        <div class="card"><h3>Recall</h3><div class="big">${fmtNum(tm.recall)}</div></div>
+        <div class="card"><h3>PR-AUC</h3><div class="big">${fmtNum(tm.pr_auc)}</div></div>
+        <div class="card"><h3>Expected loss</h3><div class="big">${fmtMoney(tm.expected_financial_loss)}</div></div>
+      </div>
+
+      <div class="section-title">Baseline (rule-based) vs. selected model — validation set</div>
+      <table class="table">
+        <tr><th></th><th>Precision</th><th>Recall</th><th>F1</th><th>PR-AUC</th><th>Expected loss</th></tr>
+        <tr><td>Rule-based baseline</td><td>${fmtNum(rules.precision)}</td><td>${fmtNum(rules.recall)}</td><td>${fmtNum(rules.f1)}</td><td>${fmtNum(rules.pr_auc)}</td><td>${fmtMoney(rules.expected_financial_loss)}</td></tr>
+        <tr><td><b>${d.winning_model}</b></td><td>${fmtNum(sel.precision)}</td><td>${fmtNum(sel.recall)}</td><td>${fmtNum(sel.f1)}</td><td>${fmtNum(sel.pr_auc)}</td><td>${fmtMoney(sel.expected_financial_loss)}</td></tr>
+      </table>
+    `;
+  } catch (e) {
+    el.innerHTML = `<div class="empty-state">Could not load overview: ${e.message}</div>`;
+  }
+}
+
+// ---------------- Investigation ----------------
+async function renderInvestigation(prefillId) {
+  const el = document.getElementById('tab-investigation');
+  el.innerHTML = `
+    <div class="search-row">
+      <input id="txnSearch" placeholder="Transaction ID, e.g. TXNR_00000010" value="${prefillId || ''}" />
+      <button onclick="doInvestigate()">Investigate</button>
+    </div>
+    <div id="invResult"></div>
+  `;
+  if (prefillId) doInvestigate();
+}
+
+async function doInvestigate() {
+  const txnId = document.getElementById('txnSearch').value.trim();
+  const resultEl = document.getElementById('invResult');
+  if (!txnId) { resultEl.innerHTML = ''; return; }
+  resultEl.innerHTML = '<div class="empty-state">scoring…</div>';
+  try {
+    const d = await api(`/investigations/${encodeURIComponent(txnId)}`);
+    const gtBlock = d.ground_truth_for_evaluation_only
+      ? `<div class="sub">Ground truth (evaluation only): abuse_label=${d.ground_truth_for_evaluation_only.abuse_label}, ring=${d.ground_truth_for_evaluation_only.ring_id || '—'}, type=${d.ground_truth_for_evaluation_only.abuse_type || '—'}</div>`
+      : '';
+    const evidenceRows = Object.entries(d.evidence_features)
+      .map(([k, v]) => `<div class="evidence-row"><span>${k}</span><span class="val">${v}</span></div>`).join('');
+    const auditRows = d.audit_trail.length
+      ? d.audit_trail.map(a => `<tr><td>${a.timestamp}</td><td>${fmtNum(a.risk_score,4)}</td><td>${a.prediction}</td><td>${a.model_version}</td></tr>`).join('')
+      : '<tr><td colspan="4" class="empty-state">no prior audit events for this transaction — call /predict to create one</td></tr>';
+
+    resultEl.innerHTML = `
+      <div class="grid" style="margin-bottom:20px">
+        <div class="card"><h3>Risk score</h3><div class="big">${fmtNum(d.risk_score,4)}</div></div>
+        <div class="card"><h3>Prediction</h3><div class="big">${riskBadge(d.risk_band)}</div><div class="sub">${d.prediction}</div></div>
+        <div class="card"><h3>Amount</h3><div class="big">${fmtMoney(d.transaction.amount)}</div>
+          <div class="sub">hour ${d.transaction.hour}, day_of_week ${d.transaction.day_of_week}</div></div>
+      </div>
+      ${gtBlock}
+      <div class="section-title">Coordination evidence</div>
+      <div class="card">${evidenceRows}</div>
+      <div class="section-title">Audit trail</div>
+      <table class="table">
+        <tr><th>Timestamp</th><th>Risk score</th><th>Prediction</th><th>Model</th></tr>
+        ${auditRows}
+      </table>
+      <div class="sub" style="margin-top:10px">Call <code>/predict</code> for this transaction to generate SHAP top-signal evidence and add a new audit event.</div>
+      <button style="margin-top:10px" onclick="callPredict('${d.transaction_id}')">Run /predict + refresh</button>
+    `;
+  } catch (e) {
+    resultEl.innerHTML = `<div class="empty-state">${e.message}</div>`;
+  }
+}
+
+async function callPredict(txnId) {
+  try {
+    await api('/predict', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({transaction_id: txnId}) });
+    doInvestigate();
+  } catch (e) { alert(e.message); }
+}
+
+// ---------------- Model Lab ----------------
+async function renderModelLab() {
+  const el = document.getElementById('tab-modellab');
+  el.innerHTML = '<div class="empty-state">loading…</div>';
+  try {
+    const exps = await api('/experiments');
+    const bench = await api('/metrics/benchmark');
+    const names = Object.keys(exps);
+
+    const rows = names.map(n => {
+      const m = exps[n].validation_metrics;
+      const isWinner = n === bench.winner;
+      return `<tr style="${isWinner ? 'background:rgba(91,140,255,0.08)' : ''}">
+        <td>${isWinner ? '★ ' : ''}${n}</td>
+        <td>${exps[n].n_features}</td>
+        <td>${fmtNum(m.pr_auc)}</td><td>${fmtNum(m.roc_auc)}</td>
+        <td>${fmtNum(m.precision)}</td><td>${fmtNum(m.recall)}</td><td>${fmtNum(m.f1)}</td>
+        <td>${fmtNum(exps[n].selected_threshold)}</td>
+        <td>${fmtMoney(m.expected_financial_loss)}</td>
+      </tr>`;
+    }).join('');
+
+    const ablRows = Object.entries(bench.ablations).map(([n, a]) => `
+      <tr><td>${n}</td><td>${a.n_features}</td><td>${fmtNum(a.pr_auc)}</td><td>${fmtNum(a.roc_auc)}</td>
+        <td>${fmtNum(a.precision)}</td><td>${fmtNum(a.recall)}</td><td>${fmtMoney(a.expected_financial_loss)}</td></tr>
+    `).join('');
+
+    el.innerHTML = `
+      <div class="flex-between">
+        <div class="section-title" style="margin-top:0">Model comparison (validation set)</div>
+        <select id="curveSelect" onchange="renderCurves()">
+          ${names.map(n => `<option value="${n}" ${n===bench.winner?'selected':''}>${n}</option>`).join('')}
+        </select>
+      </div>
+      <table class="table">
+        <tr><th>Experiment</th><th># feat</th><th>PR-AUC</th><th>ROC-AUC</th><th>Precision</th><th>Recall</th><th>F1</th><th>Threshold</th><th>Expected loss</th></tr>
+        ${rows}
+      </table>
+
+      <div class="section-title">Precision-Recall &amp; threshold/cost curves</div>
+      <div class="grid" style="grid-template-columns: 1fr 1fr">
+        <div class="svg-wrap"><div class="sub" style="margin-bottom:6px">Precision-Recall curve</div><div id="prCurveSvg"></div></div>
+        <div class="svg-wrap"><div class="sub" style="margin-bottom:6px">Expected loss vs. threshold (★ = selected)</div><div id="costCurveSvg"></div></div>
+      </div>
+
+      <div class="section-title">Ablation results</div>
+      <table class="table">
+        <tr><th>Ablation</th><th># feat</th><th>PR-AUC</th><th>ROC-AUC</th><th>Precision</th><th>Recall</th><th>Expected loss</th></tr>
+        ${ablRows}
+      </table>
+    `;
+    renderCurves();
+  } catch (e) {
+    el.innerHTML = `<div class="empty-state">Could not load Model Lab: ${e.message}</div>`;
+  }
+}
+
+function svgLine(points, w, h, color, xMin, xMax, yMin, yMax) {
+  const px = x => ((x - xMin) / (xMax - xMin || 1)) * (w - 40) + 30;
+  const py = y => h - 20 - ((y - yMin) / (yMax - yMin || 1)) * (h - 40);
+  const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${px(p[0]).toFixed(1)} ${py(p[1]).toFixed(1)}`).join(' ');
+  return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2"/>`;
+}
+
+async function renderCurves() {
+  const sel = document.getElementById('curveSelect');
+  if (!sel) return;
+  const name = sel.value;
+  try {
+    const d = await api(`/model/curves?experiment=${encodeURIComponent(name)}`);
+    const w = 460, h = 220;
+
+    // PR curve: recall (x) vs precision (y)
+    const prPoints = d.pr_curve.recall.map((r, i) => [r, d.pr_curve.precision[i]]);
+    const prSvg = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+      <line x1="30" y1="${h-20}" x2="${w-10}" y2="${h-20}" stroke="#232a38"/>
+      <line x1="30" y1="10" x2="30" y2="${h-20}" stroke="#232a38"/>
+      ${svgLine(prPoints, w, h, '#5b8cff', 0, 1, 0, 1)}
+      <text x="30" y="10" fill="#8b93a7" font-size="10">precision</text>
+      <text x="${w-60}" y="${h-5}" fill="#8b93a7" font-size="10">recall</text>
+    </svg>`;
+    document.getElementById('prCurveSvg').innerHTML = prSvg;
+
+    // threshold curve: threshold (x) vs expected_loss (y)
+    const tc = d.threshold_curve;
+    const lossPoints = tc.map(r => [r.threshold, r.expected_loss]);
+    const yVals = tc.map(r => r.expected_loss);
+    const yMin = Math.min(...yVals), yMax = Math.max(...yVals);
+    const selT = d.selected_threshold;
+    const px = x => ((x - 0) / 1) * (w - 40) + 30;
+    const py = y => h - 20 - ((y - yMin) / ((yMax - yMin) || 1)) * (h - 40);
+    const costSvg = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+      <line x1="30" y1="${h-20}" x2="${w-10}" y2="${h-20}" stroke="#232a38"/>
+      <line x1="30" y1="10" x2="30" y2="${h-20}" stroke="#232a38"/>
+      ${svgLine(lossPoints, w, h, '#ffb454', 0, 1, yMin, yMax)}
+      <circle cx="${px(selT).toFixed(1)}" cy="${py(d.validation_metrics.expected_financial_loss).toFixed(1)}" r="4" fill="#ff5c72"/>
+      <text x="30" y="10" fill="#8b93a7" font-size="10">expected loss</text>
+      <text x="${w-70}" y="${h-5}" fill="#8b93a7" font-size="10">threshold</text>
+    </svg>`;
+    document.getElementById('costCurveSvg').innerHTML = costSvg;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// ---------------- Dataset Lab ----------------
+function barChart(entries, w, h, color) {
+  const max = Math.max(...entries.map(e => e[1]), 1);
+  const barW = (w - 40) / entries.length;
+  const bars = entries.map(([label, val], i) => {
+    const bh = (val / max) * (h - 50);
+    const x = 30 + i * barW;
+    const y = h - 30 - bh;
+    return `<rect x="${x + 4}" y="${y}" width="${barW - 8}" height="${bh}" fill="${color}" rx="2"/>
+      <text x="${x + barW/2}" y="${h-14}" fill="#8b93a7" font-size="9" text-anchor="middle">${label.length>10?label.slice(0,9)+'…':label}</text>
+      <text x="${x + barW/2}" y="${y-4}" fill="#e6e9ef" font-size="10" text-anchor="middle">${val}</text>`;
+  }).join('');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${bars}</svg>`;
+}
+
+async function renderDatasetLab() {
+  const el = document.getElementById('tab-datasetlab');
+  el.innerHTML = '<div class="empty-state">loading…</div>';
+  try {
+    const d = await api('/dataset/summary');
+    const cd = d.class_distribution;
+    const ringEntries = Object.entries(d.ring_type_distribution);
+    const segEntries = Object.entries(d.legitimate_lookalike_segment_distribution);
+    const sc = d.split_composition;
+
+    el.innerHTML = `
+      <div class="grid">
+        <div class="card"><h3>Legitimate transactions</h3><div class="big" style="color:var(--ok)">${cd.legitimate.toLocaleString()}</div></div>
+        <div class="card"><h3>Abuse transactions</h3><div class="big" style="color:var(--danger)">${cd.abuse.toLocaleString()}</div>
+          <div class="sub">${(100*cd.abuse/(cd.abuse+cd.legitimate)).toFixed(2)}% of total</div></div>
+        <div class="card"><h3>Rings (total)</h3><div class="big">${d.ring_stats.length}</div></div>
+        <div class="card"><h3>Dataset version</h3><div class="big" style="font-size:14px">${d.manifest.dataset_version}</div></div>
+      </div>
+
+      <div class="section-title">Abuse-ring type distribution</div>
+      <div class="svg-wrap">${barChart(ringEntries, 900, 220, '#ff5c72')}</div>
+
+      <div class="section-title">Customer segments (incl. legitimate lookalikes)</div>
+      <div class="svg-wrap">${barChart(segEntries, 900, 220, '#5b8cff')}</div>
+
+      <div class="section-title">Train / validation / test composition</div>
+      <table class="table">
+        <tr><th>Split</th><th># rings</th><th># transactions</th></tr>
+        <tr><td>Train</td><td>${sc.train.n_rings}</td><td>${sc.train.n_transactions.toLocaleString()}</td></tr>
+        <tr><td>Validation</td><td>${sc.validation.n_rings}</td><td>${sc.validation.n_transactions.toLocaleString()}</td></tr>
+        <tr><td>Test (locked)</td><td>${sc.test.n_rings}</td><td>${sc.test.n_transactions.toLocaleString()}</td></tr>
+      </table>
+
+      <div class="section-title">Ring registry</div>
+      <table class="table">
+        <tr><th>Ring ID</th><th>Type</th><th>Accounts</th><th>Transactions</th><th>Amount at risk</th></tr>
+        ${d.ring_stats.slice(0,25).map(r => `<tr>
+          <td><a href="#" onclick="jumpToRing('${r.ring_id}');return false;">${r.ring_id}</a></td>
+          <td>${r.abuse_type}</td><td>${r.ring_size_accounts}</td><td>${r.n_transactions}</td><td>${fmtMoney(r.amount_at_risk)}</td>
+        </tr>`).join('')}
+      </table>
+      ${d.ring_stats.length > 25 ? `<div class="sub">showing 25 of ${d.ring_stats.length} rings</div>` : ''}
+    `;
+  } catch (e) {
+    el.innerHTML = `<div class="empty-state">Could not load Dataset Lab: ${e.message}</div>`;
+  }
+}
+
+function jumpToRing(ringId) {
+  document.querySelector('[data-tab="datasetlab"]').classList.remove('active');
+  document.querySelector('[data-tab="investigation"]').classList.add('active');
+  document.getElementById('tab-datasetlab').style.display = 'none';
+  document.getElementById('tab-investigation').style.display = 'block';
+  alert('Ring ' + ringId + ' selected. Use the Investigation tab search box with a transaction_id from this ring (see ring_stats / ground_truth.parquet) to inspect an individual transaction.');
+  renderInvestigation();
+}
+
+// ---------------- Audit ----------------
+async function renderAudit() {
+  const el = document.getElementById('tab-audit');
+  el.innerHTML = '<div class="empty-state">loading…</div>';
+  try {
+    const rows = await api('/audit/recent?limit=50');
+    if (!rows.length) {
+      el.innerHTML = '<div class="empty-state">No prediction events yet. Call /predict on a transaction from the Investigation tab to generate one.</div>';
+      return;
+    }
+    el.innerHTML = `
+      <div class="section-title" style="margin-top:0">Recent prediction events (${rows.length})</div>
+      <table class="table">
+        <tr><th>Timestamp</th><th>Transaction</th><th>Risk score</th><th>Prediction</th><th>Threshold</th><th>Model</th><th>Latency (ms)</th></tr>
+        ${rows.map(r => `<tr>
+          <td>${r.timestamp}</td>
+          <td><a href="#" onclick="event.preventDefault(); jumpToInvestigation('${r.transaction_id}')">${r.transaction_id}</a></td>
+          <td>${fmtNum(r.risk_score,4)}</td>
+          <td>${r.prediction}</td>
+          <td>${fmtNum(r.threshold,3)}</td>
+          <td>${r.model_version}</td>
+          <td>${fmtNum(r.inference_latency_ms,2)}</td>
+        </tr>`).join('')}
+      </table>
+    `;
+  } catch (e) {
+    el.innerHTML = `<div class="empty-state">Could not load audit trail: ${e.message}</div>`;
+  }
+}
+
+function jumpToInvestigation(txnId) {
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+  document.querySelector('[data-tab="investigation"]').classList.add('active');
+  document.getElementById('tab-audit').style.display = 'none';
+  document.getElementById('tab-investigation').style.display = 'block';
+  renderInvestigation(txnId);
+}
+
+// ---------------- init ----------------
+checkHealth();
+renderOverview();
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+{
+  "false_positive_cost": 500.0,
+  "investigation_cost": 100.0,
+  "loss_rate_on_missed_abuse": 0.85
+}

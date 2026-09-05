@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+data_store/*.parquet
+data_store/*.json
+artifacts/*.pkl
+artifacts/*.db
+artifacts/mlflow.db
+artifacts/mlruns/
+catboost_info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
