@@ -27,8 +27,10 @@ def main():
     refunds = pd.read_parquet(data / "refunds.parquet")
     chargebacks = pd.read_parquet(data / "chargebacks.parquet")
 
-    print(f"[features] building {FEATURE_VERSION} for {len(transactions)} transactions "
-          f"(single forward chronological pass)...")
+    print(
+        f"[features] building {FEATURE_VERSION} for {len(transactions)} transactions "
+        f"(single forward chronological pass)..."
+    )
     t0 = time.time()
     feats = build_features(transactions, customers, merchants, refunds, chargebacks)
     dt = time.time() - t0

@@ -66,18 +66,20 @@ def load_artifacts():
     with open(ARTIFACTS_DIR / f"model_{winner}.pkl", "rb") as f:
         bundle = pickle.load(f)
 
-    _state.update({
-        "ready": True,
-        "winner": winner,
-        "threshold": summary["experiments"][winner]["selected_threshold"],
-        "feature_set": summary["experiments"][winner]["feature_set"],
-        "bundle": bundle,
-        "predict_fn": _predict_fn_for(winner),
-        "model_version": "risk-v1.0",
-        "feature_version": FEATURE_VERSION,
-        "locked_test_metrics": summary["locked_test_metrics"],
-        "summary": summary,
-    })
+    _state.update(
+        {
+            "ready": True,
+            "winner": winner,
+            "threshold": summary["experiments"][winner]["selected_threshold"],
+            "feature_set": summary["experiments"][winner]["feature_set"],
+            "bundle": bundle,
+            "predict_fn": _predict_fn_for(winner),
+            "model_version": "risk-v1.0",
+            "feature_version": FEATURE_VERSION,
+            "locked_test_metrics": summary["locked_test_metrics"],
+            "summary": summary,
+        }
+    )
 
     # feature store snapshot for inference-time lookups
     if (DATA_DIR / "features.parquet").exists():
@@ -249,8 +251,10 @@ def investigation(transaction_id: str):
         )
         audit_events = [
             {
-                "timestamp": str(h.timestamp), "risk_score": h.risk_score,
-                "prediction": h.prediction, "model_version": h.model_version,
+                "timestamp": str(h.timestamp),
+                "risk_score": h.risk_score,
+                "prediction": h.prediction,
+                "model_version": h.model_version,
             }
             for h in history
         ]
@@ -267,11 +271,18 @@ def investigation(transaction_id: str):
             "hour": int(row["hour"]),
             "day_of_week": int(row["day_of_week"]),
         },
-        "evidence_features": {c: float(row[c]) for c in [
-            "shared_device_count", "shared_ip_count", "shared_instrument_count",
-            "transactions_in_time_window_15m", "accounts_created_nearby",
-            "two_hop_neighbor_count", "community_size",
-        ]},
+        "evidence_features": {
+            c: float(row[c])
+            for c in [
+                "shared_device_count",
+                "shared_ip_count",
+                "shared_instrument_count",
+                "transactions_in_time_window_15m",
+                "accounts_created_nearby",
+                "two_hop_neighbor_count",
+                "community_size",
+            ]
+        },
         "ground_truth_for_evaluation_only": ground_truth,
         "audit_trail": audit_events,
     }
@@ -350,8 +361,14 @@ def dataset_summary():
     segment_dist = customers["customer_segment"].value_counts().to_dict()
 
     split_composition = {
-        "train": {"n_rings": len(splits["train_ring_ids"]), "n_transactions": splits["train_transaction_count"]},
-        "validation": {"n_rings": len(splits["validation_ring_ids"]), "n_transactions": splits["validation_transaction_count"]},
+        "train": {
+            "n_rings": len(splits["train_ring_ids"]),
+            "n_transactions": splits["train_transaction_count"],
+        },
+        "validation": {
+            "n_rings": len(splits["validation_ring_ids"]),
+            "n_transactions": splits["validation_transaction_count"],
+        },
         "test": {"n_rings": len(splits["test_ring_ids"]), "n_transactions": splits["test_transaction_count"]},
     }
 

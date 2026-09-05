@@ -23,9 +23,11 @@ def main():
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
-    print(f"[generate] profile={cfg.profile} seed={cfg.seed} "
-          f"n_customers={cfg.n_customers} n_merchants={cfg.n_merchants} "
-          f"n_transactions_target={cfg.n_transactions} n_rings={cfg.n_rings}")
+    print(
+        f"[generate] profile={cfg.profile} seed={cfg.seed} "
+        f"n_customers={cfg.n_customers} n_merchants={cfg.n_merchants} "
+        f"n_transactions_target={cfg.n_transactions} n_rings={cfg.n_rings}"
+    )
 
     ds = generate_dataset(cfg)
 
@@ -55,8 +57,10 @@ def main():
     with open(out / "manifest.json", "w") as f:
         json.dump(manifest, f, indent=2, default=str)
 
-    print(f"[generate] wrote {len(ds.transactions)} transactions, "
-          f"{len(ds.ring_stats)} rings, abuse_rate={abuse_rate:.4f} -> {out}/")
+    print(
+        f"[generate] wrote {len(ds.transactions)} transactions, "
+        f"{len(ds.ring_stats)} rings, abuse_rate={abuse_rate:.4f} -> {out}/"
+    )
     print(f"[generate] manifest: {manifest}")
 
 

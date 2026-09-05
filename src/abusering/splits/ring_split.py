@@ -25,8 +25,8 @@ def make_splits(ground_truth: pd.DataFrame, seed: int = 42) -> dict:
     n_train = int(round(n * SPLIT_RATIOS["train"]))
     n_val = int(round(n * SPLIT_RATIOS["validation"]))
     train_rings = ring_ids[:n_train]
-    val_rings = ring_ids[n_train:n_train + n_val]
-    test_rings = ring_ids[n_train + n_val:]
+    val_rings = ring_ids[n_train : n_train + n_val]
+    test_rings = ring_ids[n_train + n_val :]
 
     assert set(train_rings) & set(val_rings) == set()
     assert set(train_rings) & set(test_rings) == set()
@@ -38,8 +38,8 @@ def make_splits(ground_truth: pd.DataFrame, seed: int = 42) -> dict:
     n_legit_train = int(round(n_legit * SPLIT_RATIOS["train"]))
     n_legit_val = int(round(n_legit * SPLIT_RATIOS["validation"]))
     legit_train = legit_txn_ids[:n_legit_train]
-    legit_val = legit_txn_ids[n_legit_train:n_legit_train + n_legit_val]
-    legit_test = legit_txn_ids[n_legit_train + n_legit_val:]
+    legit_val = legit_txn_ids[n_legit_train : n_legit_train + n_legit_val]
+    legit_test = legit_txn_ids[n_legit_train + n_legit_val :]
 
     train_abuse_txns = ground_truth.loc[ground_truth.ring_id.isin(train_rings), "transaction_id"].to_numpy()
     val_abuse_txns = ground_truth.loc[ground_truth.ring_id.isin(val_rings), "transaction_id"].to_numpy()
@@ -65,7 +65,11 @@ def make_splits(ground_truth: pd.DataFrame, seed: int = 42) -> dict:
 
 
 def verify_no_ring_overlap(manifest: dict) -> None:
-    tr, va, te = set(manifest["train_ring_ids"]), set(manifest["validation_ring_ids"]), set(manifest["test_ring_ids"])
+    tr, va, te = (
+        set(manifest["train_ring_ids"]),
+        set(manifest["validation_ring_ids"]),
+        set(manifest["test_ring_ids"]),
+    )
     assert not (tr & va), "train/validation ring overlap detected"
     assert not (tr & te), "train/test ring overlap detected"
     assert not (va & te), "validation/test ring overlap detected"
@@ -73,6 +77,7 @@ def verify_no_ring_overlap(manifest: dict) -> None:
 
 def main():
     import argparse
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", type=str, default="data_store")
     ap.add_argument("--out", type=str, default="data_store")
@@ -89,12 +94,16 @@ def main():
     with open(out / "splits.json", "w") as f:
         json.dump(manifest, f)
 
-    print(f"[splits] train_rings={len(manifest['train_ring_ids'])} "
-          f"val_rings={len(manifest['validation_ring_ids'])} "
-          f"test_rings={len(manifest['test_ring_ids'])}")
-    print(f"[splits] train_txns={manifest['train_transaction_count']} "
-          f"val_txns={manifest['validation_transaction_count']} "
-          f"test_txns={manifest['test_transaction_count']}")
+    print(
+        f"[splits] train_rings={len(manifest['train_ring_ids'])} "
+        f"val_rings={len(manifest['validation_ring_ids'])} "
+        f"test_rings={len(manifest['test_ring_ids'])}"
+    )
+    print(
+        f"[splits] train_txns={manifest['train_transaction_count']} "
+        f"val_txns={manifest['validation_transaction_count']} "
+        f"test_txns={manifest['test_transaction_count']}"
+    )
     print("[splits] zero ring overlap verified OK")
 
 

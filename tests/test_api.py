@@ -8,8 +8,11 @@ def test_health_and_predict_end_to_end():
         health = client.get("/health").json()
         if health["status"] != "ok":
             import pytest
-            pytest.skip("artifacts/experiments.json not present — run the experiment "
-                        "pipeline before running API tests")
+
+            pytest.skip(
+                "artifacts/experiments.json not present — run the experiment "
+                "pipeline before running API tests"
+            )
 
         info = client.get("/model/info").json()
         assert "model_version" in info

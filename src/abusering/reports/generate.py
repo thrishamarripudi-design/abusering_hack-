@@ -51,7 +51,7 @@ def gen_leakage_report(leak: dict, out: pathlib.Path):
         "chronological forward pass** over transactions. For every "
         "transaction, features are read from rolling per-entity state "
         "*before* that transaction is folded into the state. This makes "
-        "\"features only see events with `event_timestamp < prediction_time`\" "
+        '"features only see events with `event_timestamp < prediction_time`" '
         "a structural property of the algorithm, not something enforced by "
         "a separate filter that could be gotten wrong. `abusering/tests/` "
         "additionally injects synthetic future refunds/chargebacks/relationships "
@@ -126,14 +126,16 @@ def gen_model_selection_report(summary: dict, out: pathlib.Path):
         f"features removed (E5_xgboost_no_graph): "
         f"**PR-AUC uplift = {summary['graph_feature_pr_auc_uplift_E3_minus_E5']:+.4f}** "
         f"on the validation set. "
-        + ("This is a substantial, not marginal, improvement — graph/coordination "
-           "signals (shared-device/IP/instrument counts, two-hop neighborhood "
-           "size, account-creation-burst proximity) carry real information "
-           "for this task that transaction-level behavioral features alone "
-           "do not capture."
-           if summary['graph_feature_pr_auc_uplift_E3_minus_E5'] > 0.02 else
-           "This is a small improvement, suggesting graph features add "
-           "modest but non-zero value on top of behavioral features alone."),
+        + (
+            "This is a substantial, not marginal, improvement — graph/coordination "
+            "signals (shared-device/IP/instrument counts, two-hop neighborhood "
+            "size, account-creation-burst proximity) carry real information "
+            "for this task that transaction-level behavioral features alone "
+            "do not capture."
+            if summary["graph_feature_pr_auc_uplift_E3_minus_E5"] > 0.02
+            else "This is a small improvement, suggesting graph features add "
+            "modest but non-zero value on top of behavioral features alone."
+        ),
         "",
         "## 4. Ablation results (Sec 19)",
         "",
@@ -141,8 +143,7 @@ def gen_model_selection_report(summary: dict, out: pathlib.Path):
         "|---|---|---|---|---|---|---|",
         *ab_rows,
         "",
-        "- **A vs B**: behavioral-only vs. graph-only — shows each family's "
-        "standalone signal.",
+        "- **A vs B**: behavioral-only vs. graph-only — shows each family's standalone signal.",
         "- **C**: behavioral + graph together (full feature set).",
         "- **D**: full set minus velocity features — isolates velocity's contribution.",
         "- **E**: full set minus graph features (identical to A by construction).",
@@ -209,7 +210,7 @@ def gen_model_card(summary: dict, out: pathlib.Path, dataset_manifest: dict):
         "",
         "- Not a standalone auto-decline system.",
         "- Not a criminal-fraud accusation tool — terminology throughout "
-        "this system is \"coordinated abuse risk\", never \"confirmed fraud\".",
+        'this system is "coordinated abuse risk", never "confirmed fraud".',
         "- Not validated on real production traffic — trained and tested "
         "entirely on synthetic data (see dataset card).",
         "",
@@ -237,8 +238,7 @@ def gen_model_card(summary: dict, out: pathlib.Path, dataset_manifest: dict):
         "",
         "## Metrics (locked test set, unseen rings)",
         "",
-        f"- Precision: {fmt(tm['precision'])}, Recall: {fmt(tm['recall'])}, "
-        f"F1: {fmt(tm['f1'])}",
+        f"- Precision: {fmt(tm['precision'])}, Recall: {fmt(tm['recall'])}, F1: {fmt(tm['f1'])}",
         f"- PR-AUC: {fmt(tm['pr_auc'])}, ROC-AUC: {fmt(tm['roc_auc'])}",
         f"- Brier score: {fmt(tm['brier_score'])}",
         f"- False positive rate: {fmt(tm['false_positive_rate'])}",
@@ -249,8 +249,7 @@ def gen_model_card(summary: dict, out: pathlib.Path, dataset_manifest: dict):
         "- Synthetic training/eval data; real-world abuse patterns, "
         "legitimate-lookalike distributions, and class balance will differ.",
         "- Demo-scale data volume (see `data_store/manifest.json`).",
-        "- No adversarial robustness testing against an attacker who knows "
-        "the model's feature set.",
+        "- No adversarial robustness testing against an attacker who knows the model's feature set.",
         "- Calibration (Brier score above) has not been separately verified "
         "against a held-out recalibration set.",
         "",
@@ -264,14 +263,14 @@ def gen_model_card(summary: dict, out: pathlib.Path, dataset_manifest: dict):
         "## False-negative risk",
         "",
         "A missed coordinated-abuse transaction is costed at "
-        f"{summary['cost_config']['loss_rate_on_missed_abuse']*100:.0f}% of "
+        f"{summary['cost_config']['loss_rate_on_missed_abuse'] * 100:.0f}% of "
         "transaction amount in the financial cost model used for threshold "
         "selection — tune `configs/cost_config.json` to your actual risk "
         "appetite.",
         "",
         "## Known biases",
         "",
-        "The synthetic generator's legitimate \"hard negative\" populations "
+        'The synthetic generator\'s legitimate "hard negative" populations '
         "(shared-device families, shared-IP offices/hostels, small "
         "businesses) are hand-designed approximations of real-world "
         "look-alike behavior and may not cover every legitimate pattern "
@@ -319,7 +318,7 @@ def gen_dataset_card(dataset_manifest: dict, out: pathlib.Path):
         "`hostel_shared_network`, `small_business`. The shared-resource "
         "segments deliberately create customers who **look** coordinated "
         "(same device or IP as several other real people) but transact "
-        "normally, so a naive \"shared IP = abuse\" rule scores much worse "
+        'normally, so a naive "shared IP = abuse" rule scores much worse '
         "than the trained models (see `baseline_rules` in "
         "`artifacts/experiments.json`).",
         "",
@@ -379,8 +378,7 @@ def main():
     gen_model_card(summary, out, dataset_manifest)
     gen_dataset_card(dataset_manifest, out)
 
-    print(f"[reports] wrote leakage_report.md, model_selection.md, model_card.md, "
-          f"dataset_card.md -> {out}/")
+    print(f"[reports] wrote leakage_report.md, model_selection.md, model_card.md, dataset_card.md -> {out}/")
 
 
 if __name__ == "__main__":

@@ -66,21 +66,25 @@ def build_features(
     cust_created = customers.set_index("customer_id")["account_created_at"].to_dict()
 
     # Precompute refund/chargeback timestamps per transaction_id for O(1) lookup during the pass.
-    refunds_by_txn = refunds.groupby("transaction_id")["timestamp"].apply(list).to_dict() if len(refunds) else {}
-    cbs_by_txn = chargebacks.groupby("transaction_id")["timestamp"].apply(list).to_dict() if len(chargebacks) else {}
+    refunds_by_txn = (
+        refunds.groupby("transaction_id")["timestamp"].apply(list).to_dict() if len(refunds) else {}
+    )
+    cbs_by_txn = (
+        chargebacks.groupby("transaction_id")["timestamp"].apply(list).to_dict() if len(chargebacks) else {}
+    )
 
     # Rolling windowed state, keyed by entity id.
-    cust_txn_times = _Windowed()          # customer -> [(ts, amount)]
-    cust_merchants = _Windowed()          # customer -> [(ts, merchant_id)]
-    cust_devices = _Windowed()            # customer -> [(ts, device_id)]
-    cust_ips = _Windowed()                # customer -> [(ts, ip_id)]
-    device_customers = _Windowed()        # device -> [(ts, customer_id)]
-    ip_customers = _Windowed()            # ip -> [(ts, customer_id)]
-    instrument_devices = _Windowed()      # instrument -> [(ts, device_id)]
-    device_txn_times = _Windowed()        # device -> [(ts, 1)]
-    ip_txn_times = _Windowed()            # ip -> [(ts, 1)]
-    instrument_txn_times = _Windowed()    # instrument -> [(ts, amount)]
-    merchant_txn_times = _Windowed()      # merchant -> [(ts, 1)]
+    cust_txn_times = _Windowed()  # customer -> [(ts, amount)]
+    cust_merchants = _Windowed()  # customer -> [(ts, merchant_id)]
+    cust_devices = _Windowed()  # customer -> [(ts, device_id)]
+    cust_ips = _Windowed()  # customer -> [(ts, ip_id)]
+    device_customers = _Windowed()  # device -> [(ts, customer_id)]
+    ip_customers = _Windowed()  # ip -> [(ts, customer_id)]
+    instrument_devices = _Windowed()  # instrument -> [(ts, device_id)]
+    device_txn_times = _Windowed()  # device -> [(ts, 1)]
+    ip_txn_times = _Windowed()  # ip -> [(ts, 1)]
+    instrument_txn_times = _Windowed()  # instrument -> [(ts, amount)]
+    merchant_txn_times = _Windowed()  # merchant -> [(ts, 1)]
 
     # Cumulative (all-time, as-of) sets/counters for degree-style graph features.
     cum_device_customers: dict[str, set] = collections.defaultdict(set)
@@ -157,7 +161,8 @@ def build_features(
         created_at = cust_created.get(cust)
         account_age_days = (
             (pd.Timestamp(t, unit="s") - pd.Timestamp(created_at)).total_seconds() / 86400.0
-            if created_at is not None else -1.0
+            if created_at is not None
+            else -1.0
         )
 
         # dispute rates strictly before t (30d window), using ONLY dispute
@@ -190,7 +195,7 @@ def build_features(
         ip_txn_velocity_1h = ip_txn_times.count(ip, t, WINDOWS["1h"])
 
         instrument_unique_customers = len(cum_instrument_customers[instr])
-        instrument_unique_devices = len(set(instrument_devices.values(instr, t, 10 ** 12)))
+        instrument_unique_devices = len(set(instrument_devices.values(instr, t, 10**12)))
         instrument_txn_count = cum_instrument_txn_count[instr]
         ilist = disputes_by_instrument.get(instr, [])
         ihi = bisect.bisect_left(ilist, (cutoff_ns, ""))
@@ -198,8 +203,9 @@ def build_features(
         instrument_cb_rate = n_cb_instr / instrument_txn_count if instrument_txn_count > 0 else 0.0
 
         # ---- coordination signals ----
-        window_amounts = instrument_txn_times.values(instr, t, WINDOWS["24h"]) + \
-            device_txn_times.values(dev, t, WINDOWS["24h"])
+        window_amounts = instrument_txn_times.values(instr, t, WINDOWS["24h"]) + device_txn_times.values(
+            dev, t, WINDOWS["24h"]
+        )
         if len(window_amounts) >= 2:
             amount_similarity = 1.0 / (1.0 + float(np.std(window_amounts)))
         else:
@@ -225,57 +231,61 @@ def build_features(
         two_hop_neighbors = len(neighbor_customers)
         # crude community-size proxy: size of the union of customer sets
         # across this txn's device/ip/instrument (shared-resource cluster)
-        community_size = len(cum_device_customers[dev] | cum_ip_customers[ip] | cum_instrument_customers[instr])
+        community_size = len(
+            cum_device_customers[dev] | cum_ip_customers[ip] | cum_instrument_customers[instr]
+        )
 
         merchant_freq = cum_merchant_txn_count[merch]
 
         ts_pd = pd.Timestamp(t, unit="s")
-        rows.append({
-            "transaction_id": r["transaction_id"],
-            "customer_id": cust,
-            "prediction_time": r["timestamp"],
-            "amount": amount,
-            "log_amount": float(np.log1p(amount)),
-            "hour": ts_pd.hour,
-            "day_of_week": ts_pd.dayofweek,
-            "weekend": int(ts_pd.dayofweek >= 5),
-            "merchant_frequency": merchant_freq,
-            "transaction_count_1h": txn_count_1h,
-            "transaction_count_24h": txn_count_24h,
-            "transaction_count_7d": txn_count_7d,
-            "average_amount_7d": avg_amount_7d,
-            "amount_std_7d": amount_std_7d,
-            "refund_rate_30d": refund_rate_30d,
-            "chargeback_rate_30d": chargeback_rate_30d,
-            "unique_merchants_30d": unique_merchants_30d,
-            "unique_devices_30d": unique_devices_30d,
-            "unique_ips_30d": unique_ips_30d,
-            "account_age_days": account_age_days,
-            "device_unique_customers_1d": device_unique_customers_1d,
-            "device_unique_customers_7d": device_unique_customers_7d,
-            "device_transactions_24h": device_txn_24h,
-            "device_transactions_1h": device_txn_1h,
-            "device_customer_degree": shared_device_count,
-            "ip_unique_customers_1h": ip_unique_customers_1h,
-            "ip_unique_customers_24h": ip_unique_customers_24h,
-            "ip_unique_accounts_7d": ip_unique_accounts_7d,
-            "ip_transaction_velocity_1h": ip_txn_velocity_1h,
-            "instrument_unique_customers": instrument_unique_customers,
-            "instrument_unique_devices": instrument_unique_devices,
-            "instrument_transaction_count": instrument_txn_count,
-            "instrument_historical_chargeback_rate": instrument_cb_rate,
-            "accounts_created_nearby": accounts_created_nearby,
-            "transactions_in_time_window_15m": transactions_in_time_window,
-            "amount_similarity": amount_similarity,
-            "shared_device_count": shared_device_count,
-            "shared_ip_count": shared_ip_count,
-            "shared_instrument_count": shared_instrument_count,
-            "customer_device_degree": customer_device_degree,
-            "customer_ip_degree": customer_ip_degree,
-            "customer_instrument_degree": customer_instrument_degree,
-            "two_hop_neighbor_count": two_hop_neighbors,
-            "community_size": community_size,
-        })
+        rows.append(
+            {
+                "transaction_id": r["transaction_id"],
+                "customer_id": cust,
+                "prediction_time": r["timestamp"],
+                "amount": amount,
+                "log_amount": float(np.log1p(amount)),
+                "hour": ts_pd.hour,
+                "day_of_week": ts_pd.dayofweek,
+                "weekend": int(ts_pd.dayofweek >= 5),
+                "merchant_frequency": merchant_freq,
+                "transaction_count_1h": txn_count_1h,
+                "transaction_count_24h": txn_count_24h,
+                "transaction_count_7d": txn_count_7d,
+                "average_amount_7d": avg_amount_7d,
+                "amount_std_7d": amount_std_7d,
+                "refund_rate_30d": refund_rate_30d,
+                "chargeback_rate_30d": chargeback_rate_30d,
+                "unique_merchants_30d": unique_merchants_30d,
+                "unique_devices_30d": unique_devices_30d,
+                "unique_ips_30d": unique_ips_30d,
+                "account_age_days": account_age_days,
+                "device_unique_customers_1d": device_unique_customers_1d,
+                "device_unique_customers_7d": device_unique_customers_7d,
+                "device_transactions_24h": device_txn_24h,
+                "device_transactions_1h": device_txn_1h,
+                "device_customer_degree": shared_device_count,
+                "ip_unique_customers_1h": ip_unique_customers_1h,
+                "ip_unique_customers_24h": ip_unique_customers_24h,
+                "ip_unique_accounts_7d": ip_unique_accounts_7d,
+                "ip_transaction_velocity_1h": ip_txn_velocity_1h,
+                "instrument_unique_customers": instrument_unique_customers,
+                "instrument_unique_devices": instrument_unique_devices,
+                "instrument_transaction_count": instrument_txn_count,
+                "instrument_historical_chargeback_rate": instrument_cb_rate,
+                "accounts_created_nearby": accounts_created_nearby,
+                "transactions_in_time_window_15m": transactions_in_time_window,
+                "amount_similarity": amount_similarity,
+                "shared_device_count": shared_device_count,
+                "shared_ip_count": shared_ip_count,
+                "shared_instrument_count": shared_instrument_count,
+                "customer_device_degree": customer_device_degree,
+                "customer_ip_degree": customer_ip_degree,
+                "customer_instrument_degree": customer_instrument_degree,
+                "two_hop_neighbor_count": two_hop_neighbors,
+                "community_size": community_size,
+            }
+        )
 
         # ---- NOW apply this transaction to state (future rows will see it) ----
         cust_txn_times.push(cust, t, amount)
@@ -305,38 +315,83 @@ def build_features(
 
 
 FEATURE_COLUMNS = [
-    "amount", "log_amount", "hour", "day_of_week", "weekend", "merchant_frequency",
-    "transaction_count_1h", "transaction_count_24h", "transaction_count_7d",
-    "average_amount_7d", "amount_std_7d", "refund_rate_30d", "chargeback_rate_30d",
-    "unique_merchants_30d", "unique_devices_30d", "unique_ips_30d", "account_age_days",
-    "device_unique_customers_1d", "device_unique_customers_7d", "device_transactions_24h",
-    "device_transactions_1h", "device_customer_degree",
-    "ip_unique_customers_1h", "ip_unique_customers_24h", "ip_unique_accounts_7d",
+    "amount",
+    "log_amount",
+    "hour",
+    "day_of_week",
+    "weekend",
+    "merchant_frequency",
+    "transaction_count_1h",
+    "transaction_count_24h",
+    "transaction_count_7d",
+    "average_amount_7d",
+    "amount_std_7d",
+    "refund_rate_30d",
+    "chargeback_rate_30d",
+    "unique_merchants_30d",
+    "unique_devices_30d",
+    "unique_ips_30d",
+    "account_age_days",
+    "device_unique_customers_1d",
+    "device_unique_customers_7d",
+    "device_transactions_24h",
+    "device_transactions_1h",
+    "device_customer_degree",
+    "ip_unique_customers_1h",
+    "ip_unique_customers_24h",
+    "ip_unique_accounts_7d",
     "ip_transaction_velocity_1h",
-    "instrument_unique_customers", "instrument_unique_devices", "instrument_transaction_count",
+    "instrument_unique_customers",
+    "instrument_unique_devices",
+    "instrument_transaction_count",
     "instrument_historical_chargeback_rate",
-    "accounts_created_nearby", "transactions_in_time_window_15m", "amount_similarity",
-    "shared_device_count", "shared_ip_count", "shared_instrument_count",
-    "customer_device_degree", "customer_ip_degree", "customer_instrument_degree",
-    "two_hop_neighbor_count", "community_size",
+    "accounts_created_nearby",
+    "transactions_in_time_window_15m",
+    "amount_similarity",
+    "shared_device_count",
+    "shared_ip_count",
+    "shared_instrument_count",
+    "customer_device_degree",
+    "customer_ip_degree",
+    "customer_instrument_degree",
+    "two_hop_neighbor_count",
+    "community_size",
 ]
 
 # Subset considered "graph/coordination" features, used for ablation experiments (Sec 19).
 GRAPH_FEATURE_COLUMNS = [
-    "device_unique_customers_1d", "device_unique_customers_7d", "device_customer_degree",
-    "ip_unique_customers_1h", "ip_unique_customers_24h", "ip_unique_accounts_7d",
-    "instrument_unique_customers", "instrument_unique_devices",
-    "accounts_created_nearby", "transactions_in_time_window_15m", "amount_similarity",
-    "shared_device_count", "shared_ip_count", "shared_instrument_count",
-    "customer_device_degree", "customer_ip_degree", "customer_instrument_degree",
-    "two_hop_neighbor_count", "community_size",
+    "device_unique_customers_1d",
+    "device_unique_customers_7d",
+    "device_customer_degree",
+    "ip_unique_customers_1h",
+    "ip_unique_customers_24h",
+    "ip_unique_accounts_7d",
+    "instrument_unique_customers",
+    "instrument_unique_devices",
+    "accounts_created_nearby",
+    "transactions_in_time_window_15m",
+    "amount_similarity",
+    "shared_device_count",
+    "shared_ip_count",
+    "shared_instrument_count",
+    "customer_device_degree",
+    "customer_ip_degree",
+    "customer_instrument_degree",
+    "two_hop_neighbor_count",
+    "community_size",
 ]
 BEHAVIORAL_FEATURE_COLUMNS = [c for c in FEATURE_COLUMNS if c not in GRAPH_FEATURE_COLUMNS]
 VELOCITY_FEATURE_COLUMNS = [
-    "transaction_count_1h", "transaction_count_24h", "transaction_count_7d",
-    "device_transactions_1h", "device_transactions_24h", "ip_transaction_velocity_1h",
+    "transaction_count_1h",
+    "transaction_count_24h",
+    "transaction_count_7d",
+    "device_transactions_1h",
+    "device_transactions_24h",
+    "ip_transaction_velocity_1h",
     "transactions_in_time_window_15m",
 ]
 DISPUTE_FEATURE_COLUMNS = [
-    "refund_rate_30d", "chargeback_rate_30d", "instrument_historical_chargeback_rate",
+    "refund_rate_30d",
+    "chargeback_rate_30d",
+    "instrument_historical_chargeback_rate",
 ]

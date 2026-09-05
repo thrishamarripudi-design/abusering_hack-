@@ -68,7 +68,6 @@ class GeneratedDataset:
 
 def generate_customers(cfg: GenerationConfig, rng: np.random.Generator) -> pd.DataFrame:
     start_ts, end_ts = _date_range_seconds(cfg)
-    # accounts can pre-date the observation window by up to ~2 years
     created = rng.integers(start_ts - 730 * 86400, end_ts, size=cfg.n_customers)
     segments = rng.choice(SEGMENTS, size=cfg.n_customers, p=SEGMENT_WEIGHTS)
     countries = rng.choice(
@@ -100,13 +99,7 @@ def generate_merchants(cfg: GenerationConfig, rng: np.random.Generator) -> pd.Da
     )
 
 
-def _assign_resource_pools(
-    cfg: GenerationConfig, customers: pd.DataFrame, rng: np.random.Generator
-):
-    """Give every customer a personal device/ip/instrument, and additionally
-    group some customers into legitimate shared-resource clusters (family,
-    office, hostel) so that "shared device/IP" alone is NOT a valid abuse
-    signal in this dataset (Sec. 5)."""
+def _assign_resource_pools(cfg: GenerationConfig, customers: pd.DataFrame, rng: np.random.Generator):
     n = len(customers)
     personal_device = np.array([f"DEV_{i:07d}" for i in range(n)])
     personal_ip = np.array([f"IP_{i:07d}" for i in range(n)])
@@ -118,7 +111,6 @@ def _assign_resource_pools(
 
     seg = customers["customer_segment"].to_numpy()
 
-    # Family shared device: groups of 2-5 share ONE device_id (not ip/instrument)
     fam_idx = np.where(seg == "family_shared_device")[0]
     rng.shuffle(fam_idx)
     ptr = 0
@@ -131,7 +123,6 @@ def _assign_resource_pools(
         fam_dev_counter += 1
         ptr += gsize
 
-    # Office shared IP: groups of 5-30 share ONE ip_id (not device/instrument)
     off_idx = np.where(seg == "office_shared_ip")[0]
     rng.shuffle(off_idx)
     ptr = 0
@@ -144,7 +135,6 @@ def _assign_resource_pools(
         off_ip_counter += 1
         ptr += gsize
 
-    # Hostel shared network: groups of 10-50 share ONE ip_id (broader, noisier)
     hostel_idx = np.where(seg == "hostel_shared_network")[0]
     rng.shuffle(hostel_idx)
     ptr = 0
@@ -157,7 +147,6 @@ def _assign_resource_pools(
         hostel_ip_counter += 1
         ptr += gsize
 
-    # Some customers legitimately have multiple devices / instruments
     multi_dev_mask = rng.random(n) < 0.12
     multi_pi_mask = rng.random(n) < 0.18
 
@@ -210,11 +199,9 @@ def generate_legitimate_transactions(
     merchant_ids = merchants["merchant_id"].to_numpy()
     txn_merchant = rng.choice(merchant_ids, size=n_target)
 
-    # a transaction can never occur before its own customer's account was
-    # created — sample timestamps per-customer with that floor enforced
     cust_created_ts = (customers["account_created_at"].astype("int64") // 10**9).to_numpy()
     low = np.maximum(start_ts, cust_created_ts[cust_idx] + 60)
-    low = np.minimum(low, end_ts - 1)  # guard against a customer created after end_ts
+    low = np.minimum(low, end_ts - 1)
     ts = rng.integers(low, end_ts, size=n_target)
 
     seg_arr = customers["customer_segment"].to_numpy()[cust_idx]
@@ -229,7 +216,6 @@ def generate_legitimate_transactions(
     ip_ids = pools["primary_ip"][cust_idx]
     instrument_ids = pools["primary_instrument"][cust_idx]
 
-    # legit multi-device / multi-instrument noise: ~ occasionally use an alt one
     multi_dev = pools["multi_device"][cust_idx]
     alt_device = rng.integers(0, len(customers), size=n_target)
     use_alt_dev = multi_dev & (rng.random(n_target) < 0.3)
@@ -258,20 +244,9 @@ def generate_legitimate_transactions(
     return df
 
 
-# ---------------------------------------------------------------------------
-# Abuse ring generators (Sec. 6 A-F). Each returns (transactions_df, meta)
-# where meta carries ring_id / abuse_type ONLY for the ground_truth table.
-# ---------------------------------------------------------------------------
-
-
 def _new_ring_customers(
     cfg, k, rng, offset, burst_window_s=None, start_ts=None, registry: dict | None = None
 ):
-    """Synthesize k new customer_ids for a ring, optionally created in a
-    tight burst window (Sec 6.E). Creation always precedes start_ts so
-    account_age_days is never negative for ring-synthetic accounts. If a
-    registry dict is provided, (customer_id -> created_at) is recorded there
-    so downstream code reuses this exact timestamp instead of resampling."""
     ids = [f"CUST_RING_{offset}_{j:03d}" for j in range(k)]
     if burst_window_s is not None:
         created = rng.integers(start_ts, start_ts + burst_window_s, size=k)
@@ -289,14 +264,6 @@ def _new_ring_customers(
 
 
 def _ring_scale(cfg: GenerationConfig) -> float:
-    """Ring size (and therefore per-ring transaction volume) scales so the
-    realized abuse rate stays close to cfg.target_abuse_rate across
-    profiles, instead of using fixed absolute ring sizes that dilute to
-    near-zero abuse rate at large `n_transactions` (this was a real bug:
-    the `full` profile originally produced 0.94% abuse rate against a 6%
-    target because n_rings grew 2.5x while n_transactions grew 12.5x).
-    BASELINE_AVG_TXN_PER_RING is calibrated from an unscaled run of the
-    `demo` profile (2,162 abuse transactions / 40 rings ≈ 54)."""
     BASELINE_AVG_TXN_PER_RING = 54.05
     target_abuse_txns = cfg.n_transactions * cfg.target_abuse_rate
     baseline_abuse_txns = cfg.n_rings * BASELINE_AVG_TXN_PER_RING
@@ -311,23 +278,18 @@ def _gen_shared_device_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, reg
     scale = _ring_scale(cfg)
     k_lo, k_hi = _scaled_range(6, 25, scale)
     k = int(rng.integers(k_lo, k_hi))
-    cust_ids, created = _new_ring_customers(
-        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry
-    )
+    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)
     device = f"DEV_RING_{ring_id}"
     n_txn = int(rng.integers(k * 2, k * 6))
     cust_pick = rng.integers(0, k, size=n_txn)
     merch = rng.choice(merchants["merchant_id"].to_numpy(), size=n_txn)
     span = int(rng.integers(3, 30)) * 86400
 
-    # Ensure transactions occur after customer creation
     min_txn_time = int(created.max().timestamp()) + 60
     ts = np.sort(rng.integers(min_txn_time, min_txn_time + span, size=n_txn))
 
     amt = np.round(np.exp(rng.normal(6.0, 0.4, size=n_txn)), 2)
-    ip = rng.choice(
-        [f"IP_RING_{ring_id}_A", f"IP_RING_{ring_id}_B"], size=n_txn
-    )
+    ip = rng.choice([f"IP_RING_{ring_id}_A", f"IP_RING_{ring_id}_B"], size=n_txn)
     instrument = np.array([f"PI_{cust_ids[c]}" for c in cust_pick])
     txns = pd.DataFrame(
         {
@@ -349,16 +311,13 @@ def _gen_shared_instrument_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts,
     scale = _ring_scale(cfg)
     k_lo, k_hi = _scaled_range(5, 20, scale)
     k = int(rng.integers(k_lo, k_hi))
-    cust_ids, created = _new_ring_customers(
-        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry
-    )
+    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)
     instrument = f"PI_RING_{ring_id}"
     n_txn = int(rng.integers(k * 2, k * 5))
     cust_pick = rng.integers(0, k, size=n_txn)
     merch = rng.choice(merchants["merchant_id"].to_numpy(), size=n_txn)
     span = int(rng.integers(5, 45)) * 86400
 
-    # Ensure transactions occur after customer creation
     min_txn_time = int(created.max().timestamp()) + 60
     ts = np.sort(rng.integers(min_txn_time, min_txn_time + span, size=n_txn))
 
@@ -385,21 +344,16 @@ def _gen_velocity_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry
     scale = _ring_scale(cfg)
     k_lo, k_hi = _scaled_range(10, 40, scale)
     k = int(rng.integers(k_lo, k_hi))
-    cust_ids, created = _new_ring_customers(
-        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry
-    )
-    n_txn = k  # ~1 coordinated txn per account, tight burst
+    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)
+    n_txn = k
 
-    # Ensure transactions occur after customer creation
     min_txn_time = int(created.max().timestamp()) + 60
     burst_start = min_txn_time + int(rng.integers(0, 60 * 86400))
-    window_s = int(rng.integers(60, 900))  # coordinated within minutes
+    window_s = int(rng.integers(60, 900))
     ts = np.sort(rng.integers(burst_start, burst_start + window_s, size=n_txn))
 
     merch_choice = rng.choice(merchants["merchant_id"].to_numpy())
-    amt = np.round(
-        np.exp(rng.normal(6.2, 0.25, size=n_txn)), 2
-    )  # similar amounts
+    amt = np.round(np.exp(rng.normal(6.2, 0.25, size=n_txn)), 2)
     device = np.array([f"DEV_{c}" for c in cust_ids])
     ip = np.array([f"IP_{c}" for c in cust_ids])
     instrument = np.array([f"PI_{c}" for c in cust_ids])
@@ -423,15 +377,12 @@ def _gen_dispute_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry=
     scale = _ring_scale(cfg)
     k_lo, k_hi = _scaled_range(4, 15, scale)
     k = int(rng.integers(k_lo, k_hi))
-    cust_ids, created = _new_ring_customers(
-        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry
-    )
+    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)
     n_txn = int(rng.integers(k * 3, k * 8))
     cust_pick = rng.integers(0, k, size=n_txn)
     merch = rng.choice(merchants["merchant_id"].to_numpy(), size=n_txn)
     span = int(rng.integers(20, 90)) * 86400
 
-    # Ensure transactions occur after customer creation
     min_txn_time = int(created.max().timestamp()) + 60
     ts = np.sort(rng.integers(min_txn_time, min_txn_time + span, size=n_txn))
 
@@ -459,15 +410,13 @@ def _gen_creation_burst_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, re
     scale = _ring_scale(cfg)
     k_lo, k_hi = _scaled_range(8, 30, scale)
     k = int(rng.integers(k_lo, k_hi))
-    burst_window = int(rng.integers(600, 3600))  # accounts created within ~1hr
+    burst_window = int(rng.integers(600, 3600))
     cust_ids, created = _new_ring_customers(
         cfg, k, rng, ring_id, burst_window_s=burst_window, start_ts=start_ts, registry=registry
     )
     n_txn = int(rng.integers(k, k * 3))
     cust_pick = rng.integers(0, k, size=n_txn)
     merch = rng.choice(merchants["merchant_id"].to_numpy(), size=n_txn)
-    # transact soon after creation (coordinated onboarding-to-cashout pattern)
-    # Minimum delay is 60 seconds to maintain account age invariant
     delay = rng.integers(60, 5 * 86400, size=n_txn)
     ts = created.astype("int64").to_numpy()[cust_pick] // 10**9 + delay
     amt = np.round(np.exp(rng.normal(6.5, 0.4, size=n_txn)), 2)
@@ -499,12 +448,8 @@ def _gen_hybrid_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry=N
     chosen = rng.choice(len(generators), size=2, replace=False)
     ctr = txn_ctr
     for sub_i, gi in enumerate(chosen):
-        # distinct offset per sub-mechanism avoids customer_id collisions
-        # between the two mechanisms combined into this hybrid ring
         sub_offset = f"{ring_id}h{sub_i}"
-        sub_txns, _ = generators[gi](
-            cfg, sub_offset, merchants, rng, ctr, start_ts, registry=registry
-        )
+        sub_txns, _ = generators[gi](cfg, sub_offset, merchants, rng, ctr, start_ts, registry=registry)
         ctr += len(sub_txns) + 1
         parts.append(sub_txns)
     txns = pd.concat(parts, ignore_index=True)
@@ -563,16 +508,12 @@ def generate_abuse_rings(
 def _generate_refunds_chargebacks(
     transactions: pd.DataFrame, ground_truth: pd.DataFrame, rng: np.random.Generator
 ):
-    merged = transactions.merge(
-        ground_truth[["transaction_id", "abuse_label"]], on="transaction_id"
-    )
+    merged = transactions.merge(ground_truth[["transaction_id", "abuse_label"]], on="transaction_id")
 
-    # legitimate refund/chargeback rates
     legit = merged[merged.abuse_label == 0]
     refund_mask_legit = rng.random(len(legit)) < 0.03
     cb_mask_legit = rng.random(len(legit)) < 0.006
 
-    # dispute-abuse ring txns get elevated refund/chargeback rates (Sec 6.D)
     abuse = merged[merged.abuse_label == 1]
     refund_mask_abuse = rng.random(len(abuse)) < 0.35
     cb_mask_abuse = rng.random(len(abuse)) < 0.22
@@ -580,9 +521,7 @@ def _generate_refunds_chargebacks(
     def _build(df, mask, prefix, reasons):
         sub = df[mask]
         if len(sub) == 0:
-            return pd.DataFrame(
-                columns=[f"{prefix}_id", "transaction_id", "timestamp", "amount", "reason"]
-            )
+            return pd.DataFrame(columns=[f"{prefix}_id", "transaction_id", "timestamp", "amount", "reason"])
         delay = rng.integers(3600, 20 * 86400, size=len(sub))
         ts = sub["timestamp"].astype("int64").to_numpy() // 10**9 + delay
         reason = rng.choice(reasons, size=len(sub))
@@ -676,9 +615,6 @@ def generate_dataset(cfg: GenerationConfig) -> GeneratedDataset:
 
     ring_txns, ring_stats, ring_cust_registry = generate_abuse_rings(cfg, merchants, rng)
 
-    # ring-only customers must also appear in the customers table, using the
-    # EXACT created_at timestamps the ring generators already computed
-    # (never re-sampled independently, or account_age could go negative)
     ring_cust_ids = set(ring_txns["customer_id"].unique()) if len(ring_txns) else set()
     existing = set(customers["customer_id"])
     new_ring_custs = ring_cust_ids - existing
@@ -711,7 +647,6 @@ def generate_dataset(cfg: GenerationConfig) -> GeneratedDataset:
         }
     )
     ground_truth = pd.concat([ground_truth_legit, ground_truth_abuse], ignore_index=True)
-    # dedupe safety: keep the abuse label if a txn_id collided (shouldn't happen given prefixes)
     ground_truth = ground_truth.drop_duplicates(subset="transaction_id", keep="last")
 
     refunds, chargebacks = _generate_refunds_chargebacks(transactions, ground_truth, rng)

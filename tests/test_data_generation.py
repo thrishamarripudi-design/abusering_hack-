@@ -10,6 +10,7 @@ def small_cfg():
     cfg = get_config("demo", seed=7)
     # shrink for fast tests
     from dataclasses import replace
+
     return replace(cfg, n_customers=600, n_merchants=100, n_transactions=2500, n_rings=6)
 
 
@@ -69,9 +70,13 @@ def test_ring_scale_keeps_abuse_rate_near_target():
     a 12.5x larger transaction count) against a 6% target. Ring size must
     scale with the target abuse-transaction volume instead."""
     from dataclasses import replace
-    small_demo_cfg = replace(get_config("demo", seed=3), n_customers=600, n_merchants=100,
-                              n_transactions=2500, n_rings=6)
-    bigger_cfg = replace(small_demo_cfg, n_transactions=2500 * 8, n_rings=8)  # rings barely scale, txns scale 8x
+
+    small_demo_cfg = replace(
+        get_config("demo", seed=3), n_customers=600, n_merchants=100, n_transactions=2500, n_rings=6
+    )
+    bigger_cfg = replace(
+        small_demo_cfg, n_transactions=2500 * 8, n_rings=8
+    )  # rings barely scale, txns scale 8x
 
     ds_small = generate_dataset(small_demo_cfg)
     ds_big = generate_dataset(bigger_cfg)

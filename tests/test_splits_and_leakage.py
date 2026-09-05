@@ -10,7 +10,14 @@ def _fake_ground_truth():
     for i in range(10):
         ring_id = f"RING_{i:03d}"
         for j in range(5):
-            rows.append({"transaction_id": f"A_{i}_{j}", "ring_id": ring_id, "abuse_type": "shared_device", "abuse_label": 1})
+            rows.append(
+                {
+                    "transaction_id": f"A_{i}_{j}",
+                    "ring_id": ring_id,
+                    "abuse_type": "shared_device",
+                    "abuse_label": 1,
+                }
+            )
     for k in range(200):
         rows.append({"transaction_id": f"L_{k}", "ring_id": None, "abuse_type": None, "abuse_label": 0})
     return pd.DataFrame(rows)
@@ -21,7 +28,11 @@ def test_no_ring_overlap():
     manifest = make_splits(gt, seed=1)
     verify_no_ring_overlap(manifest)  # should not raise
 
-    tr, va, te = set(manifest["train_ring_ids"]), set(manifest["validation_ring_ids"]), set(manifest["test_ring_ids"])
+    tr, va, te = (
+        set(manifest["train_ring_ids"]),
+        set(manifest["validation_ring_ids"]),
+        set(manifest["test_ring_ids"]),
+    )
     assert tr and va and te
     assert not (tr & va) and not (tr & te) and not (va & te)
 
@@ -29,7 +40,11 @@ def test_no_ring_overlap():
 def test_split_covers_all_transactions():
     gt = _fake_ground_truth()
     manifest = make_splits(gt, seed=1)
-    all_split_txns = set(manifest["train_transaction_ids"]) | set(manifest["validation_transaction_ids"]) | set(manifest["test_transaction_ids"])
+    all_split_txns = (
+        set(manifest["train_transaction_ids"])
+        | set(manifest["validation_transaction_ids"])
+        | set(manifest["test_transaction_ids"])
+    )
     assert all_split_txns == set(gt["transaction_id"])
 
 

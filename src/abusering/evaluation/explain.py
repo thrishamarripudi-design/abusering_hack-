@@ -21,10 +21,12 @@ def explain_prediction(model, X_row: np.ndarray, feature_names: list[str], top_k
     contributions.sort(key=lambda x: x[1], reverse=True)
     top_positive = [
         {"feature": f, "shap_value": float(v), "feature_value": float(val)}
-        for f, v, val in contributions[:top_k] if v > 0
+        for f, v, val in contributions[:top_k]
+        if v > 0
     ]
     top_negative = [
         {"feature": f, "shap_value": float(v), "feature_value": float(val)}
-        for f, v, val in contributions[-top_k:][::-1] if v < 0
+        for f, v, val in contributions[-top_k:][::-1]
+        if v < 0
     ]
     return {"top_positive_signals": top_positive, "top_negative_signals": top_negative}

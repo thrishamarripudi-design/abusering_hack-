@@ -21,8 +21,8 @@ from sklearn.metrics import (
 )
 
 DEFAULT_COST_CONFIG = {
-    "false_positive_cost": 500.0,       # cost of wrongly blocking/reviewing a legit txn
-    "investigation_cost": 100.0,        # cost of manually investigating a flagged txn
+    "false_positive_cost": 500.0,  # cost of wrongly blocking/reviewing a legit txn
+    "investigation_cost": 100.0,  # cost of manually investigating a flagged txn
     "loss_rate_on_missed_abuse": 0.85,  # fraction of txn amount lost if a true abuse txn is missed (FN)
 }
 
@@ -52,7 +52,9 @@ def expected_loss(y_true: np.ndarray, y_pred: np.ndarray, amounts: np.ndarray, c
     return float(fp_cost + fn_cost + investigation_cost)
 
 
-def compute_metrics(y_true: np.ndarray, y_score: np.ndarray, y_pred: np.ndarray, amounts: np.ndarray, cost_cfg: dict) -> dict:
+def compute_metrics(
+    y_true: np.ndarray, y_score: np.ndarray, y_pred: np.ndarray, amounts: np.ndarray, cost_cfg: dict
+) -> dict:
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
     metrics = {
         "precision": float(precision_score(y_true, y_pred, zero_division=0)),
@@ -84,8 +86,9 @@ def recall_at_precision(y_true, y_score, precision_target: float) -> float:
     return float(recalls[mask].max()) if mask.any() else 0.0
 
 
-def optimize_threshold(y_true: np.ndarray, y_score: np.ndarray, amounts: np.ndarray, cost_cfg: dict,
-                        n_candidates: int = 199) -> dict:
+def optimize_threshold(
+    y_true: np.ndarray, y_score: np.ndarray, amounts: np.ndarray, cost_cfg: dict, n_candidates: int = 199
+) -> dict:
     """Grid search thresholds, pick the one minimizing expected financial
     loss on the given (validation) set. Sec 17: never touch the test set here."""
     candidates = np.linspace(0.01, 0.99, n_candidates)

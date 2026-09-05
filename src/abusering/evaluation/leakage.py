@@ -7,8 +7,14 @@ from __future__ import annotations
 from abusering.features.build import FEATURE_COLUMNS
 
 FORBIDDEN_FEATURE_COLUMNS = {
-    "ring_id", "abuse_type", "generator_type", "ground_truth_label", "abuse_label",
-    "scenario_id", "customer_id", "transaction_id",
+    "ring_id",
+    "abuse_type",
+    "generator_type",
+    "ground_truth_label",
+    "abuse_label",
+    "scenario_id",
+    "customer_id",
+    "transaction_id",
 }
 
 
