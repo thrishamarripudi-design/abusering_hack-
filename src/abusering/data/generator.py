@@ -304,11 +304,11 @@ def _gen_shared_device_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, reg
     cust_pick = rng.integers(0, k, size=n_txn)
     merch = rng.choice(merchants["merchant_id"].to_numpy(), size=n_txn)
     span = int(rng.integers(3, 30)) * 86400
-    
+
     # Ensure transactions occur after customer creation
     min_txn_time = int(created.max().timestamp()) + 60
     ts = np.sort(rng.integers(min_txn_time, min_txn_time + span, size=n_txn))
-    
+
     amt = np.round(np.exp(rng.normal(6.0, 0.4, size=n_txn)), 2)
     ip = rng.choice([f"IP_RING_{ring_id}_A", f"IP_RING_{ring_id}_B"], size=n_txn)
     instrument = np.array([f"PI_{cust_ids[c]}" for c in cust_pick])
@@ -335,11 +335,11 @@ def _gen_shared_instrument_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts,
     cust_pick = rng.integers(0, k, size=n_txn)
     merch = rng.choice(merchants["merchant_id"].to_numpy(), size=n_txn)
     span = int(rng.integers(5, 45)) * 86400
-    
+
     # Ensure transactions occur after customer creation
     min_txn_time = int(created.max().timestamp()) + 60
     ts = np.sort(rng.integers(min_txn_time, min_txn_time + span, size=n_txn))
-    
+
     amt = np.round(np.exp(rng.normal(5.8, 0.5, size=n_txn)), 2)
     device = np.array([f"DEV_{cust_ids[c]}" for c in cust_pick])
     ip = np.array([f"IP_{cust_ids[c]}" for c in cust_pick])
@@ -362,13 +362,13 @@ def _gen_velocity_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry
     k = int(rng.integers(k_lo, k_hi))
     cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)
     n_txn = k  # ~1 coordinated txn per account, tight burst
-    
+
     # Ensure transactions occur after customer creation
     min_txn_time = int(created.max().timestamp()) + 60
     burst_start = min_txn_time + int(rng.integers(0, 60 * 86400))
     window_s = int(rng.integers(60, 900))  # coordinated within minutes
     ts = np.sort(rng.integers(burst_start, burst_start + window_s, size=n_txn))
-    
+
     merch_choice = rng.choice(merchants["merchant_id"].to_numpy())
     amt = np.round(np.exp(rng.normal(6.2, 0.25, size=n_txn)), 2)  # similar amounts
     device = np.array([f"DEV_{c}" for c in cust_ids])
@@ -396,11 +396,11 @@ def _gen_dispute_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry=
     cust_pick = rng.integers(0, k, size=n_txn)
     merch = rng.choice(merchants["merchant_id"].to_numpy(), size=n_txn)
     span = int(rng.integers(20, 90)) * 86400
-    
+
     # Ensure transactions occur after customer creation
     min_txn_time = int(created.max().timestamp()) + 60
     ts = np.sort(rng.integers(min_txn_time, min_txn_time + span, size=n_txn))
-    
+
     amt = np.round(np.exp(rng.normal(6.8, 0.5, size=n_txn)), 2)
     device = np.array([f"DEV_{cust_ids[c]}" for c in cust_pick])
     ip = np.array([f"IP_{cust_ids[c]}" for c in cust_pick])
