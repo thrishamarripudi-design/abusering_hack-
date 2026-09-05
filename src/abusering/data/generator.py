@@ -617,3 +617,4 @@ def generate_dataset(cfg: GenerationConfig) -> GeneratedDataset:
         ground_truth=ground_truth,
         ring_stats=ring_stats,    
         )
+        
