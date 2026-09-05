@@ -14,14 +14,14 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Lint
         run: ruff check src/ tests/
-      - name: Unit tests (data/features/splits/metrics/API — no full experiment run)
-        run: PYTHONPATH=src pytest tests/ -v
-      - name: Small end-to-end pipeline smoke test
+      - name: Build the full pipeline BEFORE running tests
         run: |
           export PYTHONPATH=src
           python -m abusering.data.generate --profile demo --seed 42 --out data_store
           python -m abusering.features.build_cli --data data_store --out data_store
           python -m abusering.splits.ring_split --data data_store --out data_store --seed 42
           python -m abusering.evaluation.run_experiments --data data_store --artifacts artifacts \
-            --reports reports --optuna-trials 3 --seed 42
+            --reports reports --optuna-trials 5 --seed 42
           python -m abusering.reports.generate --artifacts artifacts --data data_store --out reports
+      - name: Tests (now artifacts/data_store exist, so the API test won't 503)
+        run: PYTHONPATH=src pytest tests/ -v
