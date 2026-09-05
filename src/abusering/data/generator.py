@@ -636,7 +636,21 @@ def generate_dataset(cfg: GenerationConfig) -> GeneratedDataset:
     legit_txns = generate_legitimate_transactions(cfg, customers, merchants, pools, rng)
 
     ring_txns, ring_stats, ring_cust_registry = generate_abuse_rings(cfg, merchants, rng)
+    # Ensure every ring transaction occurs at or after the account creation
+    # time of the customer it belongs to.
+    if len(ring_txns):
+        ring_created = pd.Series(
+            ring_txns["customer_id"].map(ring_cust_registry),
+            index=ring_txns.index,
+        )
 
+        ring_txn_ts = pd.to_datetime(ring_txns["timestamp"])
+        invalid = ring_txn_ts < ring_created
+
+        if invalid.any():
+            ring_txns.loc[invalid, "timestamp"] = (
+                ring_created[invalid] + pd.Timedelta(seconds=60)
+            )
     ring_cust_ids = set(ring_txns["customer_id"].unique()) if len(ring_txns) else set()
     existing = set(customers["customer_id"])
     new_ring_custs = ring_cust_ids - existing
