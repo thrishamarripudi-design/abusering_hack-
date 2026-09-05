@@ -4,7 +4,7 @@ __pycache__/
 venv/
 data_store/*.parquet
 data_store/*.json
-artifacts/*.pkl
+# artifacts/*.pkl
 artifacts/*.db
 artifacts/mlflow.db
 artifacts/mlruns/
