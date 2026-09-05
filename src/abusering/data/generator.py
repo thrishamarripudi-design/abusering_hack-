@@ -616,4 +616,4 @@ def generate_dataset(cfg: GenerationConfig) -> GeneratedDataset:
         relationships=relationships,
         ground_truth=ground_truth,
         ring_stats=ring_stats,
-        )
+    )
