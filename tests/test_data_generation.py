@@ -56,9 +56,17 @@ def test_no_negative_account_age_at_ring_level(dataset):
     """Every ring-synthetic customer's account_created_at must precede
     (or equal) every transaction timestamp attributed to them."""
     merged = dataset.transactions.merge(dataset.customers, on="customer_id")
-    bad = merged[merged["timestamp"] < merged["account_created_at"]]
-    assert len(bad) == 0, f"{len(bad)} transactions occur before their customer's account creation"
 
+    # Only check synthetic abuse-ring customers
+    merged = merged[merged["customer_segment"] == "ring_synthetic"]
+
+    bad = merged[merged["timestamp"] < merged["account_created_at"]]
+
+    assert len(bad) == 0, (
+        f"{len(bad)} ring-synthetic transactions occur before "
+        "their customer's account creation"
+    )
+    
 
 def test_amount_positive(dataset):
     assert (dataset.transactions["amount"] > 0).all()

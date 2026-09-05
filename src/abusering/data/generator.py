@@ -99,7 +99,9 @@ def generate_merchants(cfg: GenerationConfig, rng: np.random.Generator) -> pd.Da
     )
 
 
-def _assign_resource_pools(cfg: GenerationConfig, customers: pd.DataFrame, rng: np.random.Generator):
+def _assign_resource_pools(
+    cfg: GenerationConfig, customers: pd.DataFrame, rng: np.random.Generator
+):
     n = len(customers)
     personal_device = np.array([f"DEV_{i:07d}" for i in range(n)])
     personal_ip = np.array([f"IP_{i:07d}" for i in range(n)])
@@ -278,7 +280,9 @@ def _gen_shared_device_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, reg
     scale = _ring_scale(cfg)
     k_lo, k_hi = _scaled_range(6, 25, scale)
     k = int(rng.integers(k_lo, k_hi))
-    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)
+    cust_ids, created = _new_ring_customers(
+        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry
+    )
     device = f"DEV_RING_{ring_id}"
     n_txn = int(rng.integers(k * 2, k * 6))
     cust_pick = rng.integers(0, k, size=n_txn)
@@ -289,7 +293,9 @@ def _gen_shared_device_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, reg
     ts = np.sort(rng.integers(min_txn_time, min_txn_time + span, size=n_txn))
 
     amt = np.round(np.exp(rng.normal(6.0, 0.4, size=n_txn)), 2)
-    ip = rng.choice([f"IP_RING_{ring_id}_A", f"IP_RING_{ring_id}_B"], size=n_txn)
+    ip = rng.choice(
+        [f"IP_RING_{ring_id}_A", f"IP_RING_{ring_id}_B"], size=n_txn
+    )
     instrument = np.array([f"PI_{cust_ids[c]}" for c in cust_pick])
     txns = pd.DataFrame(
         {
@@ -311,7 +317,9 @@ def _gen_shared_instrument_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts,
     scale = _ring_scale(cfg)
     k_lo, k_hi = _scaled_range(5, 20, scale)
     k = int(rng.integers(k_lo, k_hi))
-    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)
+    cust_ids, created = _new_ring_customers(
+        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry
+    )
     instrument = f"PI_RING_{ring_id}"
     n_txn = int(rng.integers(k * 2, k * 5))
     cust_pick = rng.integers(0, k, size=n_txn)
@@ -344,7 +352,9 @@ def _gen_velocity_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry
     scale = _ring_scale(cfg)
     k_lo, k_hi = _scaled_range(10, 40, scale)
     k = int(rng.integers(k_lo, k_hi))
-    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)
+    cust_ids, created = _new_ring_customers(
+        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry
+    )
     n_txn = k
 
     min_txn_time = int(created.max().timestamp()) + 60
@@ -353,7 +363,9 @@ def _gen_velocity_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry
     ts = np.sort(rng.integers(burst_start, burst_start + window_s, size=n_txn))
 
     merch_choice = rng.choice(merchants["merchant_id"].to_numpy())
-    amt = np.round(np.exp(rng.normal(6.2, 0.25, size=n_txn)), 2)
+    amt = np.round(
+        np.exp(rng.normal(6.2, 0.25, size=n_txn)), 2
+    )
     device = np.array([f"DEV_{c}" for c in cust_ids])
     ip = np.array([f"IP_{c}" for c in cust_ids])
     instrument = np.array([f"PI_{c}" for c in cust_ids])
@@ -377,7 +389,9 @@ def _gen_dispute_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry=
     scale = _ring_scale(cfg)
     k_lo, k_hi = _scaled_range(4, 15, scale)
     k = int(rng.integers(k_lo, k_hi))
-    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)
+    cust_ids, created = _new_ring_customers(
+        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry
+    )
     n_txn = int(rng.integers(k * 3, k * 8))
     cust_pick = rng.integers(0, k, size=n_txn)
     merch = rng.choice(merchants["merchant_id"].to_numpy(), size=n_txn)
@@ -449,7 +463,9 @@ def _gen_hybrid_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry=N
     ctr = txn_ctr
     for sub_i, gi in enumerate(chosen):
         sub_offset = f"{ring_id}h{sub_i}"
-        sub_txns, _ = generators[gi](cfg, sub_offset, merchants, rng, ctr, start_ts, registry=registry)
+        sub_txns, _ = generators[gi](
+            cfg, sub_offset, merchants, rng, ctr, start_ts, registry=registry
+        )
         ctr += len(sub_txns) + 1
         parts.append(sub_txns)
     txns = pd.concat(parts, ignore_index=True)
@@ -508,7 +524,9 @@ def generate_abuse_rings(
 def _generate_refunds_chargebacks(
     transactions: pd.DataFrame, ground_truth: pd.DataFrame, rng: np.random.Generator
 ):
-    merged = transactions.merge(ground_truth[["transaction_id", "abuse_label"]], on="transaction_id")
+    merged = transactions.merge(
+        ground_truth[["transaction_id", "abuse_label"]], on="transaction_id"
+    )
 
     legit = merged[merged.abuse_label == 0]
     refund_mask_legit = rng.random(len(legit)) < 0.03
@@ -521,7 +539,9 @@ def _generate_refunds_chargebacks(
     def _build(df, mask, prefix, reasons):
         sub = df[mask]
         if len(sub) == 0:
-            return pd.DataFrame(columns=[f"{prefix}_id", "transaction_id", "timestamp", "amount", "reason"])
+            return pd.DataFrame(
+                columns=[f"{prefix}_id", "transaction_id", "timestamp", "amount", "reason"]
+            )
         delay = rng.integers(3600, 20 * 86400, size=len(sub))
         ts = sub["timestamp"].astype("int64").to_numpy() // 10**9 + delay
         reason = rng.choice(reasons, size=len(sub))
