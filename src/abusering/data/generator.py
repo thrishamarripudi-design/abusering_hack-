@@ -31,8 +31,16 @@ SEGMENTS = [
 SEGMENT_WEIGHTS = [0.42, 0.16, 0.08, 0.12, 0.10, 0.07, 0.05]
 
 MERCHANT_CATEGORIES = [
-    "grocery", "electronics", "travel", "food_delivery", "fashion",
-    "gaming", "utilities", "subscriptions", "marketplace", "financial_services",
+    "grocery",
+    "electronics",
+    "travel",
+    "food_delivery",
+    "fashion",
+    "gaming",
+    "utilities",
+    "subscriptions",
+    "marketplace",
+    "financial_services",
 ]
 
 
@@ -92,7 +100,9 @@ def generate_merchants(cfg: GenerationConfig, rng: np.random.Generator) -> pd.Da
     )
 
 
-def _assign_resource_pools(cfg: GenerationConfig, customers: pd.DataFrame, rng: np.random.Generator):
+def _assign_resource_pools(
+    cfg: GenerationConfig, customers: pd.DataFrame, rng: np.random.Generator
+):
     """Give every customer a personal device/ip/instrument, and additionally
     group some customers into legitimate shared-resource clusters (family,
     office, hostel) so that "shared device/IP" alone is NOT a valid abuse
@@ -115,7 +125,7 @@ def _assign_resource_pools(cfg: GenerationConfig, customers: pd.DataFrame, rng: 
     fam_dev_counter = 0
     while ptr < len(fam_idx):
         gsize = int(rng.integers(2, 6))
-        group = fam_idx[ptr: ptr + gsize]
+        group = fam_idx[ptr : ptr + gsize]
         shared_dev = f"DEV_FAM_{fam_dev_counter:05d}"
         device_pool[group] = shared_dev
         fam_dev_counter += 1
@@ -128,7 +138,7 @@ def _assign_resource_pools(cfg: GenerationConfig, customers: pd.DataFrame, rng: 
     off_ip_counter = 0
     while ptr < len(off_idx):
         gsize = int(rng.integers(5, 31))
-        group = off_idx[ptr: ptr + gsize]
+        group = off_idx[ptr : ptr + gsize]
         shared_ip = f"IP_OFFICE_{off_ip_counter:05d}"
         ip_pool[group] = shared_ip
         off_ip_counter += 1
@@ -141,7 +151,7 @@ def _assign_resource_pools(cfg: GenerationConfig, customers: pd.DataFrame, rng: 
     hostel_ip_counter = 0
     while ptr < len(hostel_idx):
         gsize = int(rng.integers(10, 51))
-        group = hostel_idx[ptr: ptr + gsize]
+        group = hostel_idx[ptr : ptr + gsize]
         shared_ip = f"IP_HOSTEL_{hostel_ip_counter:05d}"
         ip_pool[group] = shared_ip
         hostel_ip_counter += 1
@@ -253,7 +263,10 @@ def generate_legitimate_transactions(
 # where meta carries ring_id / abuse_type ONLY for the ground_truth table.
 # ---------------------------------------------------------------------------
 
-def _new_ring_customers(cfg, k, rng, offset, burst_window_s=None, start_ts=None, registry: dict | None = None):
+
+def _new_ring_customers(
+    cfg, k, rng, offset, burst_window_s=None, start_ts=None, registry: dict | None = None
+):
     """Synthesize k new customer_ids for a ring, optionally created in a
     tight burst window (Sec 6.E). Creation always precedes start_ts so
     account_age_days is never negative for ring-synthetic accounts. If a
@@ -298,7 +311,9 @@ def _gen_shared_device_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, reg
     scale = _ring_scale(cfg)
     k_lo, k_hi = _scaled_range(6, 25, scale)
     k = int(rng.integers(k_lo, k_hi))
-    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)
+    cust_ids, created = _new_ring_customers(
+        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry
+    )
     device = f"DEV_RING_{ring_id}"
     n_txn = int(rng.integers(k * 2, k * 6))
     cust_pick = rng.integers(0, k, size=n_txn)
@@ -310,26 +325,33 @@ def _gen_shared_device_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, reg
     ts = np.sort(rng.integers(min_txn_time, min_txn_time + span, size=n_txn))
 
     amt = np.round(np.exp(rng.normal(6.0, 0.4, size=n_txn)), 2)
-    ip = rng.choice([f"IP_RING_{ring_id}_A", f"IP_RING_{ring_id}_B"], size=n_txn)
+    ip = rng.choice(
+        [f"IP_RING_{ring_id}_A", f"IP_RING_{ring_id}_B"], size=n_txn
+    )
     instrument = np.array([f"PI_{cust_ids[c]}" for c in cust_pick])
-    txns = pd.DataFrame({
-        "transaction_id": [f"TXNR_{txn_ctr + i:08d}" for i in range(n_txn)],
-        "customer_id": [cust_ids[c] for c in cust_pick],
-        "merchant_id": merch,
-        "timestamp": pd.to_datetime(ts, unit="s"),
-        "amount": amt,
-        "payment_instrument_id": instrument,
-        "device_id": device,
-        "ip_id": ip,
-        "status": "success",
-    })
+    txns = pd.DataFrame(
+        {
+            "transaction_id": [f"TXNR_{txn_ctr + i:08d}" for i in range(n_txn)],
+            "customer_id": [cust_ids[c] for c in cust_pick],
+            "merchant_id": merch,
+            "timestamp": pd.to_datetime(ts, unit="s"),
+            "amount": amt,
+            "payment_instrument_id": instrument,
+            "device_id": device,
+            "ip_id": ip,
+            "status": "success",
+        }
+    )
     return txns, "shared_device"
+
 
 def _gen_shared_instrument_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry=None):
     scale = _ring_scale(cfg)
     k_lo, k_hi = _scaled_range(5, 20, scale)
     k = int(rng.integers(k_lo, k_hi))
-    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)
+    cust_ids, created = _new_ring_customers(
+        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry
+    )
     instrument = f"PI_RING_{ring_id}"
     n_txn = int(rng.integers(k * 2, k * 5))
     cust_pick = rng.integers(0, k, size=n_txn)
@@ -343,24 +365,29 @@ def _gen_shared_instrument_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts,
     amt = np.round(np.exp(rng.normal(5.8, 0.5, size=n_txn)), 2)
     device = np.array([f"DEV_{cust_ids[c]}" for c in cust_pick])
     ip = np.array([f"IP_{cust_ids[c]}" for c in cust_pick])
-    txns = pd.DataFrame({
-        "transaction_id": [f"TXNR_{txn_ctr + i:08d}" for i in range(n_txn)],
-        "customer_id": [cust_ids[c] for c in cust_pick],
-        "merchant_id": merch,
-        "timestamp": pd.to_datetime(ts, unit="s"),
-        "amount": amt,
-        "payment_instrument_id": instrument,
-        "device_id": device,
-        "ip_id": ip,
-        "status": "success",
-    })
+    txns = pd.DataFrame(
+        {
+            "transaction_id": [f"TXNR_{txn_ctr + i:08d}" for i in range(n_txn)],
+            "customer_id": [cust_ids[c] for c in cust_pick],
+            "merchant_id": merch,
+            "timestamp": pd.to_datetime(ts, unit="s"),
+            "amount": amt,
+            "payment_instrument_id": instrument,
+            "device_id": device,
+            "ip_id": ip,
+            "status": "success",
+        }
+    )
     return txns, "shared_instrument"
+
 
 def _gen_velocity_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry=None):
     scale = _ring_scale(cfg)
     k_lo, k_hi = _scaled_range(10, 40, scale)
     k = int(rng.integers(k_lo, k_hi))
-    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)
+    cust_ids, created = _new_ring_customers(
+        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry
+    )
     n_txn = k  # ~1 coordinated txn per account, tight burst
 
     # Ensure transactions occur after customer creation
@@ -370,28 +397,35 @@ def _gen_velocity_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry
     ts = np.sort(rng.integers(burst_start, burst_start + window_s, size=n_txn))
 
     merch_choice = rng.choice(merchants["merchant_id"].to_numpy())
-    amt = np.round(np.exp(rng.normal(6.2, 0.25, size=n_txn)), 2)  # similar amounts
+    amt = np.round(
+        np.exp(rng.normal(6.2, 0.25, size=n_txn)), 2
+    )  # similar amounts
     device = np.array([f"DEV_{c}" for c in cust_ids])
     ip = np.array([f"IP_{c}" for c in cust_ids])
     instrument = np.array([f"PI_{c}" for c in cust_ids])
-    txns = pd.DataFrame({
-        "transaction_id": [f"TXNR_{txn_ctr + i:08d}" for i in range(n_txn)],
-        "customer_id": cust_ids,
-        "merchant_id": merch_choice,
-        "timestamp": pd.to_datetime(ts, unit="s"),
-        "amount": amt,
-        "payment_instrument_id": instrument,
-        "device_id": device,
-        "ip_id": ip,
-        "status": "success",
-    })
+    txns = pd.DataFrame(
+        {
+            "transaction_id": [f"TXNR_{txn_ctr + i:08d}" for i in range(n_txn)],
+            "customer_id": cust_ids,
+            "merchant_id": merch_choice,
+            "timestamp": pd.to_datetime(ts, unit="s"),
+            "amount": amt,
+            "payment_instrument_id": instrument,
+            "device_id": device,
+            "ip_id": ip,
+            "status": "success",
+        }
+    )
     return txns, "coordinated_velocity"
+
 
 def _gen_dispute_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry=None):
     scale = _ring_scale(cfg)
     k_lo, k_hi = _scaled_range(4, 15, scale)
     k = int(rng.integers(k_lo, k_hi))
-    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, start_ts=start_ts, registry=registry)
+    cust_ids, created = _new_ring_customers(
+        cfg, k, rng, ring_id, start_ts=start_ts, registry=registry
+    )
     n_txn = int(rng.integers(k * 3, k * 8))
     cust_pick = rng.integers(0, k, size=n_txn)
     merch = rng.choice(merchants["merchant_id"].to_numpy(), size=n_txn)
@@ -405,46 +439,57 @@ def _gen_dispute_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry=
     device = np.array([f"DEV_{cust_ids[c]}" for c in cust_pick])
     ip = np.array([f"IP_{cust_ids[c]}" for c in cust_pick])
     instrument = np.array([f"PI_{cust_ids[c]}" for c in cust_pick])
-    txns = pd.DataFrame({
-        "transaction_id": [f"TXNR_{txn_ctr + i:08d}" for i in range(n_txn)],
-        "customer_id": [cust_ids[c] for c in cust_pick],
-        "merchant_id": merch,
-        "timestamp": pd.to_datetime(ts, unit="s"),
-        "amount": amt,
-        "payment_instrument_id": instrument,
-        "device_id": device,
-        "ip_id": ip,
-        "status": "success",
-    })
+    txns = pd.DataFrame(
+        {
+            "transaction_id": [f"TXNR_{txn_ctr + i:08d}" for i in range(n_txn)],
+            "customer_id": [cust_ids[c] for c in cust_pick],
+            "merchant_id": merch,
+            "timestamp": pd.to_datetime(ts, unit="s"),
+            "amount": amt,
+            "payment_instrument_id": instrument,
+            "device_id": device,
+            "ip_id": ip,
+            "status": "success",
+        }
+    )
     return txns, "dispute_abuse"
+
 
 def _gen_creation_burst_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry=None):
     scale = _ring_scale(cfg)
     k_lo, k_hi = _scaled_range(8, 30, scale)
     k = int(rng.integers(k_lo, k_hi))
     burst_window = int(rng.integers(600, 3600))  # accounts created within ~1hr
-    cust_ids, created = _new_ring_customers(cfg, k, rng, ring_id, burst_window_s=burst_window, start_ts=start_ts, registry=registry)
+    cust_ids, created = _new_ring_customers(
+        cfg, k, rng, ring_id, burst_window_s=burst_window, start_ts=start_ts, registry=registry
+    )
     n_txn = int(rng.integers(k, k * 3))
     cust_pick = rng.integers(0, k, size=n_txn)
     merch = rng.choice(merchants["merchant_id"].to_numpy(), size=n_txn)
     # transact soon after creation (coordinated onboarding-to-cashout pattern)
-    delay = rng.integers(3600, 5 * 86400, size=n_txn)
+    # Minimum delay is 60 seconds to maintain account age invariant
+    delay = rng.integers(60, 5 * 86400, size=n_txn)
     ts = created.astype("int64").to_numpy()[cust_pick] // 10**9 + delay
     amt = np.round(np.exp(rng.normal(6.5, 0.4, size=n_txn)), 2)
-    device = rng.choice([f"DEV_RING_{ring_id}_A", f"DEV_RING_{ring_id}_B", f"DEV_RING_{ring_id}_C"], size=n_txn)
+    device = rng.choice(
+        [f"DEV_RING_{ring_id}_A", f"DEV_RING_{ring_id}_B", f"DEV_RING_{ring_id}_C"],
+        size=n_txn,
+    )
     ip = np.array([f"IP_{cust_ids[c]}" for c in cust_pick])
     instrument = np.array([f"PI_{cust_ids[c]}" for c in cust_pick])
-    txns = pd.DataFrame({
-        "transaction_id": [f"TXNR_{txn_ctr + i:08d}" for i in range(n_txn)],
-        "customer_id": [cust_ids[c] for c in cust_pick],
-        "merchant_id": merch,
-        "timestamp": pd.to_datetime(ts, unit="s"),
-        "amount": amt,
-        "payment_instrument_id": instrument,
-        "device_id": device,
-        "ip_id": ip,
-        "status": "success",
-    })
+    txns = pd.DataFrame(
+        {
+            "transaction_id": [f"TXNR_{txn_ctr + i:08d}" for i in range(n_txn)],
+            "customer_id": [cust_ids[c] for c in cust_pick],
+            "merchant_id": merch,
+            "timestamp": pd.to_datetime(ts, unit="s"),
+            "amount": amt,
+            "payment_instrument_id": instrument,
+            "device_id": device,
+            "ip_id": ip,
+            "status": "success",
+        }
+    )
     return txns, "coordinated_creation"
 
 
@@ -457,7 +502,9 @@ def _gen_hybrid_ring(cfg, ring_id, merchants, rng, txn_ctr, start_ts, registry=N
         # distinct offset per sub-mechanism avoids customer_id collisions
         # between the two mechanisms combined into this hybrid ring
         sub_offset = f"{ring_id}h{sub_i}"
-        sub_txns, _ = generators[gi](cfg, sub_offset, merchants, rng, ctr, start_ts, registry=registry)
+        sub_txns, _ = generators[gi](
+            cfg, sub_offset, merchants, rng, ctr, start_ts, registry=registry
+        )
         ctr += len(sub_txns) + 1
         parts.append(sub_txns)
     txns = pd.concat(parts, ignore_index=True)
@@ -496,15 +543,17 @@ def generate_abuse_rings(
         txns["abuse_type"] = abuse_type
         all_txns.append(txns)
         txn_ctr += len(txns) + 1
-        ring_rows.append({
-            "ring_id": ring_id,
-            "abuse_type": abuse_type,
-            "ring_size_accounts": txns["customer_id"].nunique(),
-            "n_transactions": len(txns),
-            "amount_at_risk": round(float(txns["amount"].sum()), 2),
-            "period_start": txns["timestamp"].min(),
-            "period_end": txns["timestamp"].max(),
-        })
+        ring_rows.append(
+            {
+                "ring_id": ring_id,
+                "abuse_type": abuse_type,
+                "ring_size_accounts": txns["customer_id"].nunique(),
+                "n_transactions": len(txns),
+                "amount_at_risk": round(float(txns["amount"].sum()), 2),
+                "period_start": txns["timestamp"].min(),
+                "period_end": txns["timestamp"].max(),
+            }
+        )
 
     ring_txns = pd.concat(all_txns, ignore_index=True) if all_txns else pd.DataFrame()
     ring_stats = pd.DataFrame(ring_rows)
@@ -514,7 +563,9 @@ def generate_abuse_rings(
 def _generate_refunds_chargebacks(
     transactions: pd.DataFrame, ground_truth: pd.DataFrame, rng: np.random.Generator
 ):
-    merged = transactions.merge(ground_truth[["transaction_id", "abuse_label"]], on="transaction_id")
+    merged = transactions.merge(
+        ground_truth[["transaction_id", "abuse_label"]], on="transaction_id"
+    )
 
     # legitimate refund/chargeback rates
     legit = merged[merged.abuse_label == 0]
@@ -529,27 +580,57 @@ def _generate_refunds_chargebacks(
     def _build(df, mask, prefix, reasons):
         sub = df[mask]
         if len(sub) == 0:
-            return pd.DataFrame(columns=[f"{prefix}_id", "transaction_id", "timestamp", "amount", "reason"])
+            return pd.DataFrame(
+                columns=[f"{prefix}_id", "transaction_id", "timestamp", "amount", "reason"]
+            )
         delay = rng.integers(3600, 20 * 86400, size=len(sub))
         ts = sub["timestamp"].astype("int64").to_numpy() // 10**9 + delay
         reason = rng.choice(reasons, size=len(sub))
         amt = sub["amount"].to_numpy() * rng.uniform(0.5, 1.0, size=len(sub))
-        return pd.DataFrame({
-            f"{prefix}_id": [f"{prefix.upper()}_{i:08d}" for i in range(len(sub))],
-            "transaction_id": sub["transaction_id"].to_numpy(),
-            "timestamp": pd.to_datetime(ts, unit="s"),
-            "amount": np.round(amt, 2),
-            "reason": reason,
-        })
+        return pd.DataFrame(
+            {
+                f"{prefix}_id": [f"{prefix.upper()}_{i:08d}" for i in range(len(sub))],
+                "transaction_id": sub["transaction_id"].to_numpy(),
+                "timestamp": pd.to_datetime(ts, unit="s"),
+                "amount": np.round(amt, 2),
+                "reason": reason,
+            }
+        )
 
-    refunds = pd.concat([
-        _build(legit, refund_mask_legit, "refund", ["not_as_described", "changed_mind", "duplicate", "damaged"]),
-        _build(abuse, refund_mask_abuse, "refund", ["not_received", "unauthorized", "not_as_described"]),
-    ], ignore_index=True)
-    chargebacks = pd.concat([
-        _build(legit, cb_mask_legit, "chargeback", ["unauthorized", "service_not_provided"]),
-        _build(abuse, cb_mask_abuse, "chargeback", ["unauthorized", "friendly_fraud", "service_not_provided"]),
-    ], ignore_index=True)
+    refunds = pd.concat(
+        [
+            _build(
+                legit,
+                refund_mask_legit,
+                "refund",
+                ["not_as_described", "changed_mind", "duplicate", "damaged"],
+            ),
+            _build(
+                abuse,
+                refund_mask_abuse,
+                "refund",
+                ["not_received", "unauthorized", "not_as_described"],
+            ),
+        ],
+        ignore_index=True,
+    )
+    chargebacks = pd.concat(
+        [
+            _build(
+                legit,
+                cb_mask_legit,
+                "chargeback",
+                ["unauthorized", "service_not_provided"],
+            ),
+            _build(
+                abuse,
+                cb_mask_abuse,
+                "chargeback",
+                ["unauthorized", "friendly_fraud", "service_not_provided"],
+            ),
+        ],
+        ignore_index=True,
+    )
 
     refunds["refund_id"] = [f"REFUND_{i:08d}" for i in range(len(refunds))]
     chargebacks["chargeback_id"] = [f"CHARGEBACK_{i:08d}" for i in range(len(chargebacks))]
@@ -559,8 +640,10 @@ def _generate_refunds_chargebacks(
 def _build_relationships(transactions: pd.DataFrame) -> pd.DataFrame:
     edges = []
     for target_col, target_type in [
-        ("device_id", "device"), ("ip_id", "ip"),
-        ("payment_instrument_id", "instrument"), ("merchant_id", "merchant"),
+        ("device_id", "device"),
+        ("ip_id", "ip"),
+        ("payment_instrument_id", "instrument"),
+        ("merchant_id", "merchant"),
     ]:
         g = transactions.groupby(["customer_id", target_col])["timestamp"].min().reset_index()
         g = g.rename(columns={target_col: "target_id", "timestamp": "created_at"})
@@ -568,7 +651,18 @@ def _build_relationships(transactions: pd.DataFrame) -> pd.DataFrame:
         g["source_type"] = "customer"
         g["target_type"] = target_type
         g["relationship_type"] = f"customer_{target_type}"
-        edges.append(g[["source_id", "source_type", "target_id", "target_type", "relationship_type", "created_at"]])
+        edges.append(
+            g[
+                [
+                    "source_id",
+                    "source_type",
+                    "target_id",
+                    "target_type",
+                    "relationship_type",
+                    "created_at",
+                ]
+            ]
+        )
     return pd.concat(edges, ignore_index=True)
 
 
@@ -591,12 +685,14 @@ def generate_dataset(cfg: GenerationConfig) -> GeneratedDataset:
     if new_ring_custs:
         ids = list(new_ring_custs)
         created = [ring_cust_registry[c] for c in ids]
-        extra = pd.DataFrame({
-            "customer_id": ids,
-            "account_created_at": pd.to_datetime(created),
-            "customer_segment": "ring_synthetic",
-            "country": rng.choice(["IN", "US", "GB", "AE", "SG"], size=len(ids)),
-        })
+        extra = pd.DataFrame(
+            {
+                "customer_id": ids,
+                "account_created_at": pd.to_datetime(created),
+                "customer_segment": "ring_synthetic",
+                "country": rng.choice(["IN", "US", "GB", "AE", "SG"], size=len(ids)),
+            }
+        )
         customers = pd.concat([customers, extra], ignore_index=True)
 
     ground_truth_abuse = ring_txns[["transaction_id", "ring_id", "abuse_type"]].copy()
@@ -606,12 +702,14 @@ def generate_dataset(cfg: GenerationConfig) -> GeneratedDataset:
     transactions = pd.concat([legit_txns, ring_txns_clean], ignore_index=True)
     transactions = transactions.sort_values("timestamp").reset_index(drop=True)
 
-    ground_truth_legit = pd.DataFrame({
-        "transaction_id": legit_txns["transaction_id"],
-        "ring_id": None,
-        "abuse_type": None,
-        "abuse_label": 0,
-    })
+    ground_truth_legit = pd.DataFrame(
+        {
+            "transaction_id": legit_txns["transaction_id"],
+            "ring_id": None,
+            "abuse_type": None,
+            "abuse_label": 0,
+        }
+    )
     ground_truth = pd.concat([ground_truth_legit, ground_truth_abuse], ignore_index=True)
     # dedupe safety: keep the abuse label if a txn_id collided (shouldn't happen given prefixes)
     ground_truth = ground_truth.drop_duplicates(subset="transaction_id", keep="last")
